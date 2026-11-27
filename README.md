@@ -1,0 +1,142 @@
+# LA FRECUENCIA MUERTA · 03:17 — el juego
+
+Juego de terror en el navegador (Vite + Three.js 0.187), con geometría de pocos polígonos, hormigón y niebla nocturna.
+La resolución se adapta a la ventana hasta 1280 × 720. El protagonista de abrigo verde es un
+modelo 3D sacado de su imagen del video y se ve desde atrás, por encima del hombro: camina, corre, fuma cuando se queda
+quieto y cae de bruces si algo lo atrapa. Todo empieza (y vuelve) en el baño a las 03:17.
+
+## Publicar en Vercel
+
+Importa este repositorio y usa la raíz del proyecto. La configuración de Vite está en `vercel.json`.
+La instalación usa `npm ci`, la compilación usa `npm run build` y la salida es `dist/`. El juego no necesita claves ni servicios externos. Las texturas, los clips y el modelo se incluyen en `public/assets/`.
+
+## Jugar
+```
+npm ci             # Node 22.12 o superior dentro de las ramas compatibles con Vite
+npm run dev        # http://localhost:5181   (?mudo=1 para probar sin sonido)
+```
+WASD o flechas para caminar en ocho direcciones · cámara automática · ratón o J/L para mirar alrededor si quieres · R para centrar la vista · Shift para correr · F para la linterna · Z/X o rueda para sintonizar la radio
+· E: orinar en el muro, contestar el teléfono · Tab o Q: plano (pausa) · Enter: saltar el tutorial · M: silencio
+(también se calla solo si la pestaña no está a la vista). La lista de controles con sus teclas dibujadas sale de
+`src/controles.js` y aparece en la portada, junto al plano y en la barra de abajo.
+
+Puedes jugar sólo con el teclado. Al pulsar una dirección, el personaje empieza a caminar hacia ese lado de la pantalla.
+Mientras mantienes las mismas teclas sigue en línea recta y la cámara se acomoda detrás. Si quieres observar algo,
+puedes mover el ratón o usar J/L. Al volver a caminar, la cámara retoma el seguimiento tras una breve pausa.
+
+- **Tutorial** (`src/tutorial.js`): la primera vez de cada partida, siete pasos en el baño que esperan a que hagas cada
+  cosa (caminar, mirar, linterna, radio, plano, correr y actuar, salir).
+- **Plano** (`src/plano.js`): mapa municipal de papel. Lo impreso: calles, plazas, baño, portón R9. A mano y en rojo, lo
+  que ya viste a menos de 14 m (charco, teléfono, televisores, boca), las manchas como círculos de lápiz «más o menos
+  aquí» hasta despertarlas (entonces una X) y una cruz donde te atraparon. En la fiesta, un plano casi vacío. Además,
+  un minimapa redondo abajo a la derecha.
+- La imagen conserva el color del barrio al sintonizar 31.7. Los pitidos y la lluvia ascendente marcan la señal. Sólo los sobresaltos distorsionan la imagen un instante.
+
+## Qué hacer (la guía para el jugador)
+- **Objetivo** siempre arriba (`objetivoActual` en `main.js`): recoge la radio en la repisa con E → sal del baño → sintoniza 31.7 → sigue los pitidos
+  hasta una mancha y pulsa E → ve al portón R9 → cruza la fiesta → corre hasta la luz. La marca roja del minimapa
+  apunta hacia donde toca ir.
+- **Señal**: en 31.7, «SEÑAL ▮▮▮▯▯» y pitidos en 951 Hz que se aceleran cerca de la mancha que falta.
+- **Examinar con E** (`interaccion.js` + `examinar.js`): cuando algo se puede tocar, abajo aparece «E · …». Las manchas
+  (sin 31.7 no suenan), las viejas y el charco (revelan dónde hay una mancha y la anotan en el plano), los televisores,
+  la boca, el teléfono y los afiches (mandan a las emisoras), la basura (ratas y hojas de un diario: la historia), los
+  autos, el portón cerrado (dice cuántas manchas faltan), el muro del baño y, en la fiesta, los que bailan sin cara.
+- **Emisoras** (`emisoras.js`, rayitas rojas en el dial; al soltar Z/X el dial se acomoda solo): 94.3 una voz que
+  guía, 101.7 noticias de ayer sobre el hombre del abrigo verde, 66.0 números (hacia dónde queda la mancha más cercana).
+  `pistas.js` arma las frases («a dos cuadras al noreste de la plaza central»).
+- `node herramientas/capturas.mjs guia` saca fotos de todo esto.
+
+## Objetos (`objetos.js`; se guardan entre vueltas)
+- **Linterna con batería**: 150 s encendida; parpadea cuando le queda poco y se apaga. Amanece llena en cada 03:17.
+- **Pilas**: una de cada dos basuras y dos autos. Se cambian solas cuando la linterna se agota (o al pulsar F).
+- **Casete**: en el auto de la radio encendida en 94.3. En los televisores de la vitrina muestra un recuerdo y revela
+  una mancha.
+- **Llave R9-B**: la escupe la boca del muro. Abre la **puerta con candado** frente a la plaza central (se anota en el
+  plano), donde hay cientos de radios en 31.7 y una **foto**.
+- **Foto**: mostrada a una vieja, marca en el plano todas las manchas que faltan. Si la llevas al final, la última
+  frase cambia («Ya sé quién era. Igual vuelvo.»).
+- En pantalla: «LINTERNA ▮▮▮▮▯» y «LLEVAS: …» bajo el reloj; en la pausa (Tab), qué hace cada cosa.
+- `node herramientas/capturas.mjs objetos` recorre la cadena completa y prueba la batería.
+
+## Rarezas (`rarezas.js`)
+- **Espejo del baño**: el reflejo se renueva a saltos (cuatro veces por segundo). Desde la segunda vuelta hay una
+  mujer detrás de ti que sólo existe en el espejo (capa 1: la ve la cámara del reflejo, no la del juego).
+- **El niño de espaldas** con tu abrigo arrastrando: se esfuma si te acercas, deja un charco tibio y reaparece más
+  allá, camino a la mancha que falta (cuando están todas, al portón).
+- **Relojes** en los muros, todos en 03:17; uno anda hacia atrás y se apura si lo miras.
+- **Ventanas** encendidas con alguien que se corre hacia tu lado; si la miras de frente, se agacha y la luz se apaga.
+- **Puertas a cinco metros del suelo**, con una ampolleta pelada; golpean desde adentro cuando pasas.
+- **Carrito de supermercado** que anda solo con una radio envuelta en una manta (en 31.7); se detiene si lo miras.
+- **Kiosco** de la plaza sur: todos los diarios dicen que sigues desaparecido, con tu foto de espaldas.
+- En 31.7 la lluvia sube.
+- `node herramientas/capturas.mjs rarezas` las fotografía; `... eval "<código>"` evalúa algo en el juego.
+
+## Encontrar las manchas (pensado para quien no juega)
+- **Columnas de luz roja** (`columnaDeLuz` en `main.js`) en la vereda junto a cada mancha que falta: se ven desde
+  cualquier parte, por encima de los edificios, y se apagan al despertarla. Una blanca sobre el portón cuando se abre.
+- La **flecha roja del minimapa** apunta siempre a la mancha más cercana; el **plano** las marca desde el principio.
+- A menos de 9 m de una mancha, **la radio se sintoniza sola en 31.7** y aparece «E · escuchar la mancha».
+- El objetivo de arriba: «Ve a la columna de luz roja…» → «Ahí está: … Pulsa E» → «Ve al portón R9, al norte».
+- `node herramientas/capturas.mjs faciles` lo fotografía.
+
+## El camino y lo que hay en él
+- **Manchas en fila** (`siniestro.js`, `LUGARES_MANCHA`): puerta del baño → mancha 1 (16 m, frente a la plaza sur)
+  → mancha 2 (31 m, al este de la plaza central) → mancha 3 (23 m, frente a la plaza central) → portón (42 m).
+- **Teléfonos del camino** (`telefonos.js`): tres cabinas suenan cuando pasas a menos de 20 m. Hay 14 s para
+  contestar (arriba: «¡CONTESTA EL TELÉFONO!» con la cuenta; el minimapa lo marca). Contestar: la mancha que sigue
+  (anotada en el plano), pilas, o la sombra se va. No contestar: la sombra sale a buscarte.
+- **Abrigos sin cabeza** (`calles.js`): tu mismo abrigo caminando solo por tres calles del camino (el modelo 3D con
+  el hueso de la cabeza en escala cero). La linterna los tumba un rato; tirados, se pueden revisar con E (uno tiene
+  pilas). Si te tocan, te asustan y se esfuman.
+- **El paradero de las 03:17**: cinco viejas de espaldas en la vereda este de la plaza central; al acercarte, se dan
+  vuelta todas a la vez.
+- **Bichos** (`bichos.js`): arañas en los muros cercanos (huyen de la linterna), en los azulejos y el techo del baño
+  (una camina sobre el espejo), una que baja de su hilo delante de la cámara cada 40-85 s, cucarachas alrededor de la
+  basura y polillas en los faroles.
+- `node herramientas/capturas.mjs calles` fotografía todo esto y muestra las distancias.
+
+## Peso
+Unos 5,3 MB en total (`npm run build` → `dist/`): código 855 KB (226 KB comprimido), protagonista 3D 633 KB,
+imágenes y texturas 3,2 MB, trocitos de video 0,3 MB. El sonido no pesa: se genera en vivo.
+
+## Recorrido
+1. **El baño** (03:17). Cada vez que vuelves está más podrido (la luz cambia de color).
+2. **La ciudad**: niebla, lluvia, faroles que fallan, ratas que huyen de la linterna (y manadas que cruzan la calle),
+   viejas sin rostro que miran la pared y se dan vuelta si no las miras, el perro de mancha, la sombra que avanza
+   por las fachadas y baja a caminar a tirones (la linterna la hace retroceder en la calle), la boca del muro, el charco que es un ojo, el
+   teléfono que suena, la vitrina que te muestra de espaldas en vivo y frases escritas en los muros.
+   Con la radio en **31.7** la lluvia sube, la niebla se abre un poco y los pitidos guían a las **tres manchas** que abren el
+   portón R9 (al norte). Orinar deja una mancha real que a los diez segundos toma forma de hombre.
+3. **La fiesta** (detrás del portón): pista roja que late, bola de espejos, bailarines sin rostro que se congelan cuando
+   los miras y se acercan cuando les das la espalda, y tu doble bailando al fondo; si te acercas, se detiene, te mira y
+   se va por la puerta del norte.
+4. **Los pasillos que tragan**: azulejo que se vuelve carne, muros que se cierran, bocas en las paredes y una garganta
+   de dientes de azulejo que te persigue. Al final, una puerta de luz fría: «Si todo vuelve a empezar, ¿para qué
+   terminar algo?» y otra vez el baño.
+
+Si la sombra o la garganta te alcanzan: pantalla roja y despiertas en el baño.
+
+## Archivos
+- `src/` — `main.js` (zonas, estado, bucle), `ps1.js` (imagen), `ciudad.js`, `detalles.js` (cornisas, autos, cables…),
+  `jugador.js` (control, cámara, linterna, humo), `cuerpo.js` (el protagonista 3D: esqueleto y poses), `ratas.js`,
+  `siniestro.js`, `fiesta.js`, `audio.js` (todo el sonido se genera en vivo, sin archivos), `hud.js`.
+
+## El protagonista en 3D
+- La malla salió de `fuentes/protagonista_apose.jpg` con **TRELLIS** (Microsoft, licencia MIT), en el espacio público
+  `trellis-community/TRELLIS` de Hugging Face (gratis, 30 s). Original en `fuentes/modelo3d/`.
+- `python herramientas/preparar_modelo.py` la deja a 1,78 m con los pies en el suelo, reconoce los brazos recorriendo la
+  malla desde dentro de la manga, corta las uniones mano-abrigo (si no, se estiran como membranas), calcula los pesos
+  de la piel y escribe `public/assets/protagonista.glb` y `protagonista.rig.json`. La revisión de los pesos queda en
+  `fuentes/modelo3d/pesos_vistas.png` (cada color, un hueso).
+- Las poses (quieto y fuma, camina, corre, baila, mira, cae) son números en `src/cuerpo.js`: no hay archivos de
+  animación. El doble de la fiesta usa el mismo cuerpo. Si el modelo no carga, vuelve el muñeco de cajas.
+- Meshy hizo un modelo con esqueleto y animaciones, pero bajarlo exige suscripción: no se usó.
+- `node herramientas/capturas.mjs personaje` saca sólo fotos del protagonista (frente, perfil, pasos, baile, caída).
+- `fuentes/` — imágenes de Flow (Nano Banana, 0 puntos). `sprites/rata.mp4` — animación de Dreamina (Seedance 2.5
+  Draft). La sombra y el perro animados quedaron en Dreamina sin descargar (Chrome bloqueó las descargas múltiples).
+- `herramientas/preparar_assets.py` — arma `public/assets/` (texturas repetibles, recortes, calcomanías, clips de los
+  capítulos). `herramientas/capturas.mjs` — recorre el juego con Chrome invisible y en silencio y guarda `capturas/`.
+
+Al salir del baño, el bloque 03 da a un almacén con la persiana baja y a un portal con citófono.
+Los sedanes y familiares tienen carrocerías de chapa gastada, cristales, parachoques y tapacubos. Shift aumenta la carrera a 6,2 m/s.
+Cuando la sombra se recoge y deja oír un raspado, prepara una embestida que se puede interrumpir con la linterna.

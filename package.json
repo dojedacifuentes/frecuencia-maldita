@@ -1,0 +1,17 @@
+{
+  "name": "la-frecuencia-muerta-juego",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5181 --strictPort --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --port 5182 --strictPort",
+    "assets": "python herramientas/preparar_assets.py",
+    "sonidos": "python herramientas/sonidos.py"
+  },
+  "dependencies": {
+    "three": "0.187.0",
+    "vite": "8.4.0"
+  }
+}

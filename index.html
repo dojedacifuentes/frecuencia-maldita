@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>La frecuencia muerta · 03:17</title>
+  <link rel="stylesheet" href="/src/estilo.css" />
+</head>
+<body>
+  <div id="marco">
+    <canvas id="lienzo"></canvas>
+    <div id="hud" hidden>
+      <div id="reloj">03:17</div>
+      <div id="dial"><span id="dial-valor">FM 87.9</span><span id="dial-aguja"></span><span id="dial-marcas"></span></div>
+      <div id="senal" hidden>SEÑAL <span class="senal-barras"></span></div>
+      <div id="emisora" hidden><div class="em-nombre"></div><div class="em-linea"></div></div>
+      <div id="objetivo"><span class="obj-titulo">OBJETIVO</span> <span id="obj-texto"></span></div>
+      <div id="accion" hidden></div>
+      <div id="inventario"></div>
+      <canvas id="barras" width="200" height="60"></canvas>
+      <div id="manchas">manchas 0/3</div>
+      <div id="texto"></div>
+      <canvas id="minimapa" width="160" height="160"></canvas>
+      <div id="tutorial" hidden>
+        <div class="tut-cabeza">CÓMO SE JUEGA · <span id="tut-paso">1/7</span></div>
+        <div id="tut-texto"></div>
+        <div class="tut-pie">Enter: saltar el tutorial</div>
+      </div>
+      <div id="ayuda" data-controles="fila"></div>
+    </div>
+    <div id="plano" hidden>
+      <div class="plano-cuerpo">
+        <canvas id="plano-lienzo" width="768" height="768"></canvas>
+        <div class="plano-lado">
+          <div class="controles" data-controles="lista"></div>
+          <div class="controles" id="inventario-pausa"></div>
+        </div>
+      </div>
+      <p>El juego está en pausa · <b>Tab</b>, <b>Q</b> o <b>Esc</b>: cerrar el plano</p>
+    </div>
+    <div id="portada">
+      <h1>LA FRECUENCIA MUERTA</h1>
+      <p class="sub">03:17</p>
+      <p class="intro">Despiertas en el mismo baño. La ciudad está afuera, con niebla, ratas y cosas que miran la pared.<br>
+        Busca las tres manchas que suenan en <b>317</b> para abrir el portón de la fábrica R9.<br>
+        Si la sombra te alcanza, vuelves al baño.<br>
+        Arriba siempre verás tu <b>objetivo</b>. Examina lo raro con <b>E</b>; en la radio hay voces que ayudan.</p>
+      <div class="controles portada-controles" data-controles="lista"></div>
+      <p class="teclas">La primera vez, un tutorial corto te enseña cada cosa (Enter lo salta).</p>
+      <button id="empezar">Entrar</button>
+      <p class="aviso">Con sonido. Imágenes perturbadoras y destellos.</p>
+    </div>
+    <div id="velo"></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
