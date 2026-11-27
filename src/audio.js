@@ -334,7 +334,12 @@ export function crearAudio() {
   const datos = new Uint8Array(analizador.frequencyBinCount);
   function espectro() { analizador.getByteFrequencyData(datos); return datos; }
 
-  return { ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
+  function silencioAnomalo(v) {
+    // No suspende el contexto: el control M y el foco siguen funcionando.
+    salida.gain.setTargetAtTime(v ? 0.001 : 0.9, ctx.currentTime, 0.18);
+  }
+
+  return { silencioAnomalo, ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
     tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo,
     lechoCiudad(v) { if (lechos.ok) { lechos.viento.gain.setTargetAtTime(0.07 * v, ctx.currentTime, 0.4); } } };
 }
