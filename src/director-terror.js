@@ -54,9 +54,9 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
   const esfera=new THREE.SphereGeometry(1,8,6);
   const v=new THREE.Vector3(), dir=new THREE.Vector3(), tmp=new THREE.Vector3();
   const matOjo=new THREE.MeshBasicMaterial({color:0x9c9984, fog:false});
-  const escenaOriginal=escena.background.clone();
+  
   const historial=[]; let ultimo=null, activo=null, reloj=0, espera=21, muestreo=0, quieto=0, carrera=0, radio=0, retro=0, tension=.15, fuera=false, vuelta=0;
-  let ultimaRadio=0, rara=null, sesionesIniciadas=false, finalVisto=false;
+  let ultimoSector=null, ultimaRadio=0, rara=null, sesionesIniciadas=false, finalVisto=false;
   const usados=new Set(), visitados=new Map();
   const overlay=document.createElement('div');
   overlay.setAttribute('aria-hidden','true');
@@ -112,6 +112,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
     const q=pieza(g,caja,mat,pos.x,pos.y,pos.z,w,h,.035);q.rotation.y=rot;q.userData.ownedTexture=t;q.userData.ownedMaterial=true;return q;
   }
   function terminar(){
+    if(activo?.id==='vacio')lluvia.visible=leerJuego().zona==='ciudad';
     limpiarGrupo(grupo);activo=null;audio.silencioAnomalo?.(false);audio.lechoCiudad(leerJuego().zona==='ciudad'?1:.2);
   }
   function empezar(e,p){
@@ -185,7 +186,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
       rara=EVENTOS.filter(e=>e.rare).find(e=>(acumulado+=e.rare)>r)||null;
       sesionesIniciadas=true;m.sesiones=Math.min(999,m.sesiones+1);
     }
-    guardar();finalVisto=false;vuelta=n;terminar();historial.length=0;visitados.clear();usados.clear();ultimo=null;
+    guardar();finalVisto=false;vuelta=n;terminar();historial.length=0;visitados.clear();usados.clear();ultimo=null;ultimoSector=null;
     reloj=0;espera=18;muestreo=quieto=carrera=radio=retro=0;ultimaRadio=87.9;tension=.1;fuera=false;
     overlay.style.display='none';overlayHasta=0;decorarBano(n);
     if(n===0&&m.sesiones>1)mensaje('R9 / SESIÓN ANTERIOR DETECTADA\nEl barrio conserva tus ecos.',5);
@@ -202,7 +203,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
   }
   function actualizar(dt,t,{enBano,tieneRadio,tutorial,peligro}){
     const j=leerJuego(), pj=leerJugador(), p=pj.pos;
-    if(j.estado!=='jugando'){if(activo)terminar();return;}
+    if(j.estado!=='jugando'){if(activo)terminar();if(j.estado==='final'){reloj+=dt;if(reloj>=overlayHasta)overlay.style.display='none';}else overlay.style.display='none';return;}
     reloj+=dt;
     if(reloj>=overlayHasta)overlay.style.display='none';
     bano.visible=j.zona==='ciudad';
@@ -212,7 +213,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
     quieto=d<.015?quieto+dt:Math.max(0,quieto-dt*3);
     carrera=pj.corriendo?carrera+dt:Math.max(0,carrera-dt*2);
     radio=tieneRadio&&(j.modo317||Math.abs(j.dial-ultimaRadio)>.03)?radio+dt:Math.max(0,radio-dt*.5);ultimaRadio=j.dial;
-    muestreo+=dt;if(muestreo>=.25){muestreo=0;historial.push({p:p.clone(),rumbo:pj.rumbo,t:reloj});if(historial.length>160)historial.shift();const k=Math.round(p.x/4)+':'+Math.round(p.z/4);if(!visitados.has(k)||reloj-visitados.get(k)>12){if(visitados.has(k))retro=10;visitados.set(k,reloj);}}
+    muestreo+=dt;if(muestreo>=.25){muestreo=0;historial.push({p:p.clone(),rumbo:pj.rumbo,t:reloj});if(historial.length>160)historial.shift();const k=Math.round(p.x/4)+':'+Math.round(p.z/4);if(k!==ultimoSector&&visitados.has(k)&&reloj-visitados.get(k)>12)retro=10;visitados.set(k,reloj);ultimoSector=k;}
     retro=Math.max(0,retro-dt);tension=clamp(tension-dt*.012+(peligro>.45?dt*.035:0),0,1);
     if(activo){
       const a=activo;a.edad+=dt;
