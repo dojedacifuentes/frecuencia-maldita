@@ -24,6 +24,14 @@ export const EVENTOS = [
   {id:'vacio', rare:.003, dur:8}
 ];
 
+export function elegirRara(azar=Math.random){
+  const r=azar();let acumulado=0;
+  return EVENTOS.filter(e=>e.rare).find(e=>(acumulado+=e.rare)>r)||null;
+}
+export function resolverDesenlace(foto,pruebas){
+  if(foto && pruebas.has('puerta') && (pruebas.has('archivo')||pruebas.has('transmision')||pruebas.has('cadaver'))) return 'RECHAZO DEL PROTOCOLO';
+  return foto?'RECONOCIMIENTO':'RECONSTRUCCIÓN';
+}
 export function elegirEvento({conducta, usados, tension, azar=Math.random}) {
   // La probabilidad de rareza se aplica una sola vez al iniciar cada sesión.
   const candidatos=EVENTOS.filter(e=>!e.rare&&!usados.has(e.id));
@@ -191,9 +199,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
   });
   function registrarCanal(id){pruebas.add(id);}
   function desenlace(foto){
-    if(foto && pruebas.has('puerta') && (pruebas.has('archivo')||pruebas.has('transmision')||pruebas.has('cadaver'))) return 'RECHAZO DEL PROTOCOLO';
-    if(foto)return 'RECONOCIMIENTO';
-    return 'RECONSTRUCCIÓN';
+    return resolverDesenlace(foto,pruebas);
   }
   function decorarBano(n){
     limpiarGrupo(bano);const b=ciudad.sitios.bano;
@@ -210,8 +216,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
     if(sesionesIniciadas&&n>vuelta&&!finalVisto)m.muertes=Math.min(999,m.muertes+1);
     if(!sesionesIniciadas){
       // Una oportunidad independiente por partida, nunca por fotograma.
-      const r=Math.random();let acumulado=0;
-      rara=EVENTOS.filter(e=>e.rare).find(e=>(acumulado+=e.rare)>r)||null;
+      rara=elegirRara();
       sesionesIniciadas=true;m.sesiones=Math.min(999,m.sesiones+1);
     }
     guardar();finalVisto=false;vuelta=n;terminar();historial.length=0;visitados.clear();usados.clear();ultimo=null;ultimoSector=null;
@@ -260,10 +265,10 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
     }
     espera-=dt;if(espera>0||peligro>.55||tension>.74)return;
     const conducta=quieto>5?'quieto':carrera>5?'corre':retro>0?'regresa':radio>10?'radio':'explora';
-    const e=rara&&reloj>55?rara:elegirEvento({conducta,usados,tension});
+    const e=rara&&reloj>55?rara:(j.halladas>=1&&!pruebas.has('puerta')&&!usados.has('puerta')&&reloj>35 ? EVENTOS.find(x=>x.id==='puerta') : elegirEvento({conducta,usados,tension}));
     if(e===rara)rara=null;
     if(!e){espera=35;return;}
-    if(!empezar(e,p))espera=12;
+    if(!empezar(e,p)){usados.delete(e.id);espera=12;}
   }
   // Sólo para pruebas locales, a través del objeto de depuración existente.
   function probar(id){const e=EVENTOS.find(x=>x.id===id);return !!e&&empezar(e,leerJugador().pos);}
