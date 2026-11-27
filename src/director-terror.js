@@ -40,7 +40,7 @@ function memoria() {
   } catch { return {sesiones:0,muertes:0,finales:0}; }
 }
 
-export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJugador,luces,lluvia,post}) {
+export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJugador,luces,lluvia,post,interaccion,volverAlBano}) {
   const m=memoria();
   const guardar=()=>{try{localStorage.setItem(STORAGE,JSON.stringify(m));}catch{}};
   const grupo=new THREE.Group(); grupo.name='R9:presencias'; escena.add(grupo);
@@ -57,7 +57,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
   
   const historial=[]; let ultimo=null, activo=null, reloj=0, espera=21, muestreo=0, quieto=0, carrera=0, radio=0, retro=0, tension=.15, fuera=false, vuelta=0;
   let ultimoSector=null, ultimaRadio=0, rara=null, sesionesIniciadas=false, finalVisto=false;
-  const usados=new Set(), visitados=new Map();
+  const usados=new Set(), visitados=new Map(), pruebas=new Set();
   const overlay=document.createElement('div');
   overlay.setAttribute('aria-hidden','true');
   Object.assign(overlay.style,{position:'absolute',left:'50%',top:'21%',transform:'translateX(-50%)',maxWidth:'78%',padding:'.55em .9em',background:'rgba(8,10,9,.86)',color:'#c9c2ae',font:'clamp(11px,1.4vw,17px) monospace',letterSpacing:'.08em',textAlign:'center',whiteSpace:'pre-line',pointerEvents:'none',zIndex:'4',display:'none',borderLeft:'2px solid #85443b'});
@@ -148,7 +148,7 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
         const f=ciudad.fachadas.filter(x=>Math.hypot(x.x-p.x,x.z-p.z)<16).sort((x,y)=>Math.hypot(x.x-p.x,x.z-p.z)-Math.hypot(y.x-p.x,y.z-p.z))[0];
         if(f){const g=new THREE.Group();g.position.set(f.x+f.nx*.15,1.5,f.z+f.nz*.15);g.rotation.y=Math.atan2(f.nx,f.nz);pieza(g,esfera,rojo,0,0,0,1.5,1.1,.15);for(let i=0;i<7;i++)pieza(g,caja,negro,(i-3)*.31,0,.1,.055,1.9,.09).rotation.z=(i-3)*.16;grupo.add(g);a.objetos.push(g);}audio.arrastre(p,4);break;
       }
-      case 'archivo': mensaje('R9 / REGISTRO DE RECONSTRUCCIÓN\nMuestra '+String(vuelta+1).padStart(3,'0')+' · memoria implantada.',8);break;
+      case 'archivo': pruebas.add('archivo'); mensaje('R9 / REGISTRO DE RECONSTRUCCIÓN\nMuestra '+String(vuelta+1).padStart(3,'0')+' · memoria implantada.',8);break;
       case 'ojo': {
         camara.getWorldDirection(dir);dir.y=0;dir.normalize();
         const q=p.clone().addScaledVector(dir,42);q.y=23;
@@ -167,6 +167,34 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
     tension=clamp(tension+.17,0,1);return true;
   }
 
+  // Registrar una sola interacción móvil; no acumula listeners ni bloquea objetos originales.
+  interaccion.agregar({
+    zona:'ciudad', radio:2.3, prioridad:1,
+    activo:()=>activo?.id==='puerta' && !!activo.objetos[0],
+    pos:()=>activo?.objetos[0]?.position,
+    etiqueta:'abrir la puerta que no estaba',
+    accion:()=>{
+      pruebas.add('puerta');terminar();volverAlBano();
+      mensaje('R9 / ERROR DE CONTINUIDAD\nLa puerta no estaba conectada a este lugar.',7);
+      return 'El baño. Otra vez.\nPero las manchas que recuerdas siguen despiertas.';
+    }
+  });
+  interaccion.agregar({
+    zona:'ciudad', radio:2.4,
+    activo:()=>['transmision','cadaver','pared'].includes(activo?.id)&&!!activo.objetos[0],
+    pos:()=>activo?.objetos[0]?.position,
+    etiqueta:'examinar la anomalía',
+    accion:()=>{
+      const id=activo.id;pruebas.add(id);
+      return id==='cadaver'?'El abrigo es tuyo. El reloj marca 03:17.\nEn el bolsillo: R9 / COPIA DESCARTADA.':id==='pared'?'No es un muro. Es una membrana.\nAlgo al otro lado intenta recordar cómo respirar.':'La pantalla muestra un registro de producción.\nSUJETO 0317 / RECONSTRUCCIÓN EN CURSO.';
+    }
+  });
+  function registrarCanal(id){pruebas.add(id);}
+  function desenlace(foto){
+    if(foto && pruebas.has('puerta') && (pruebas.has('archivo')||pruebas.has('transmision')||pruebas.has('cadaver'))) return 'RECHAZO DEL PROTOCOLO';
+    if(foto)return 'RECONOCIMIENTO';
+    return 'RECONSTRUCCIÓN';
+  }
   function decorarBano(n){
     limpiarGrupo(bano);const b=ciudad.sitios.bano;
     if(n<1)return;
@@ -239,5 +267,5 @@ export function crearDirector({escena,ciudad,camara,audio,hud,leerJuego,leerJuga
   }
   // Sólo para pruebas locales, a través del objeto de depuración existente.
   function probar(id){const e=EVENTOS.find(x=>x.id===id);return !!e&&empezar(e,leerJugador().pos);}
-  return {actualizar,reiniciar,final,pausa,probar,estado:()=>({activo:activo?.id||null,tension,usados:[...usados],vuelta})};
+  return {actualizar,reiniciar,final,pausa,probar,registrarCanal,desenlace,estado:()=>({activo:activo?.id||null,tension,usados:[...usados],vuelta,pruebas:[...pruebas]})};
 }
