@@ -175,7 +175,14 @@ const juego = {
   captura: 0, pasos: 0, afuera: false, latidoT: 0, porton: false, final: 0, transicion: 0, destino: null, bipT: 0,
 };
 
-const director = crearDirector({escena, ciudad, camara, audio, hud, leerJuego: () => juego, leerJugador: () => jugador.estado, luces, lluvia, post});
+const director = crearDirector({escena, ciudad, camara, audio, hud, leerJuego: () => juego, leerJugador: () => jugador.estado, luces, lluvia, post, interaccion, volverAlBano: () => {
+  const b = ciudad.sitios.bano;
+  jugador.estado.pos.copy(b.inicio);
+  jugador.estado.rumbo = 0; jugador.estado.yawCam = 0;
+  jugador.reiniciarSeguimiento();
+  entrada.ratonX = entrada.ratonY = 0;
+  audio.pulsos3();
+}});
 
 const estadoJuego = {
   get tiempoAfuera() { return juego.tiempoAfuera; },
@@ -197,7 +204,7 @@ const estadoJuego = {
   },
   salida() {
     if (juego.estado !== 'jugando') return;
-    juego.estado = 'final'; juego.final = 0; director.final(); audio.golpe(1.0);
+    juego.estado = 'final'; juego.final = 0; juego.desenlace = director.desenlace(inventario.lleva.foto); director.final(); audio.golpe(1.0);
   },
 };
 
@@ -422,7 +429,7 @@ function actualizarTodo(dt, t) {
   }
 
   const cercaDe317 = Math.max(0, 1 - Math.abs(juego.dial - 31.7) / 6);
-  const emisora = emisoras.actualizar(dt, tieneRadio ? juego.dial : -1, { numeros });
+  const emisora = emisoras.actualizar(dt, tieneRadio ? juego.dial : -1, { numeros, vueltas: juego.vueltas, pasos: juego.pasos, halladas: juego.halladas, zona: juego.zona, registrar: director.registrarCanal });
   let senal = null;
   if (juego.zona === 'ciudad' && juego.modo317 && juego.halladas < 3) {
     const x = pistas.masCercana(pj);
@@ -498,8 +505,23 @@ function actualizarTodo(dt, t) {
     // la puerta del final de los pasillos: luz blanca, la frase, y otra vez el baño
     juego.final += dt;
     post.uDestello.value = Math.min(1, juego.final / 2);
-    if (juego.final > 2 && juego.final - dt <= 2) { hud.limpiar(); hud.decir(inventario.lleva.foto ? 'Miro la foto otra vez.\nYa sé quién era. Igual vuelvo.' : 'Si todo vuelve a empezar,\n¿para qué terminar algo?', 4); }
-    if (juego.final > 7) { juego.vueltas++; post.uDestello.value = 0; despertar(); }
+    if (juego.final > 2 && juego.final - dt <= 2) {
+      hud.limpiar();
+      const finales = {'RECONSTRUCCIÓN':'No era un baño. Era una sala de nacimiento.\nOtra copia despierta a las 03:17.', 'RECONOCIMIENTO':'La foto no es un recuerdo. Es un molde.\nYa sé quién era. Igual vuelvo.', 'RECHAZO DEL PROTOCOLO':'La fábrica espera que vuelva a despertar.\nEsta vez, no contesto.'};
+      hud.decir(finales[juego.desenlace], 4);
+    }
+    if (juego.final > 9) {
+      post.uDestello.value = 0;
+      if (juego.desenlace === 'RECHAZO DEL PROTOCOLO') {
+        juego.estado = 'epilogo'; audio.silencioAnomalo(true); hud.mostrar(false);
+        const panel = document.createElement('div'); panel.id = 'epilogo-r9';
+        panel.style.cssText = 'position:absolute;inset:0;z-index:9;background:#090b0a;color:#c9c2ae;display:grid;place-content:center;text-align:center;font-family:monospace;padding:2em';
+        const titulo = document.createElement('h1'); titulo.textContent = '03:18';
+        const texto = document.createElement('p'); texto.textContent = 'R9 · TRANSMISIÓN INTERRUMPIDA / SUJETO NO LOCALIZADO';
+        const boton = document.createElement('button'); boton.textContent = 'Volver al inicio'; boton.onclick = () => location.reload();
+        panel.append(titulo, texto, boton); document.getElementById('marco').append(panel);
+      } else { juego.vueltas++; despertar(); }
+    }
   } else {
     post.uRojo.value = 0;
   }
