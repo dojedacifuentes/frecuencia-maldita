@@ -24,6 +24,7 @@ import { crearRarezas } from './rarezas.js';
 import { crearTelefonos } from './telefonos.js';
 import { crearCalles } from './calles.js';
 import { crearBichos } from './bichos.js';
+import { crearDirector } from './director-terror.js';
 
 pintarControles();
 
@@ -142,6 +143,7 @@ function capturarRaton() { try { const r = canvas.requestPointerLock?.(); r?.cat
 canvas.addEventListener('click', () => { if (juego.estado === 'jugando') capturarRaton(); });
 
 function abrirPlano(v) {
+  director.pausa(v);
   if (v) document.getElementById('inventario-pausa').innerHTML = inventario.listaPausa();
   plano.abrir(v, jugador.estado, juego.zona);
   plano.mostrarMini(!v);
@@ -173,6 +175,8 @@ const juego = {
   captura: 0, pasos: 0, afuera: false, latidoT: 0, porton: false, final: 0, transicion: 0, destino: null, bipT: 0,
 };
 
+const director = crearDirector({escena, ciudad, camara, audio, hud, leerJuego: () => juego, leerJugador: () => jugador.estado, luces, lluvia, post});
+
 const estadoJuego = {
   get tiempoAfuera() { return juego.tiempoAfuera; },
   get modo317() { return juego.modo317; },
@@ -193,7 +197,7 @@ const estadoJuego = {
   },
   salida() {
     if (juego.estado !== 'jugando') return;
-    juego.estado = 'final'; juego.final = 0; audio.golpe(1.0);
+    juego.estado = 'final'; juego.final = 0; director.final(); audio.golpe(1.0);
   },
 };
 
@@ -327,6 +331,7 @@ function despertar() {
   juego.estado = 'jugando';
   if (plano.abierto) abrirPlano(false);
   tutorial.terminar();
+  director.reiniciar(juego.vueltas);
 }
 
 document.getElementById('empezar').addEventListener('click', () => {
@@ -467,6 +472,8 @@ function actualizarTodo(dt, t) {
     lluvia.position.set(camara.position.x, 0, camara.position.z);
   }
 
+  director.actualizar(dt, t, {enBano, tieneRadio, tutorial: tutorial.activo, peligro});
+
   // el portón: con las tres manchas se abre y lleva a la fiesta
   const velo = document.getElementById('velo');
   if (juego.porton && juego.estado === 'jugando' && juego.zona === 'ciudad') {
@@ -512,6 +519,6 @@ cuadro();
 
 // para pruebas: window.__juego
 window.__juego = { juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
-  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos,
+  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, director,
   // adelanta la simulación (para probar aunque el navegador vaya lento) y dibuja una vez
   avanzar(seg, pasoDt = 1 / 30) { for (let k = 0; k < seg / pasoDt; k++) { tiempoJuego += pasoDt; actualizarTodo(pasoDt, tiempoJuego); } dibujar(escena, camara, tiempoJuego); } };
