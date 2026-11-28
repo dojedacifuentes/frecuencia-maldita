@@ -109,8 +109,15 @@ recuerdos en orden, cada uno en un lugar y con una manera distinta de pasarlo; e
   siempre). Medido con Chrome en el PC 1 (`scratchpad/medir.mjs`): la ciudad pasó de 860–1.140 llamadas de dibujo a
   ~630 y de 240.000–485.000 triángulos a 130.000–180.000; el cerro, de 175.000 a 36.000 triángulos; el sanatorio, de
   186.000 a 61.000. Los milisegundos por cuadro varían mucho con la carga del PC (en la misma medición, antes y después:
-  ciudad ~16 → ~7 ms; cerro ~9–20 → ~2 ms). La ciudad sigue siendo lo más pesado: siguiente paso, juntar faroles,
-  humo y ratas.
+  ciudad ~16 → ~7 ms; cerro ~9–20 → ~2 ms).
+- **Segunda pasada** (mismo día): `juntarQuietas` (`lote.js`) funde lo que no se mueve de un grupo ya armado en una malla
+  por material (deja aparte lo que se mueve, parpadea o cambia de color: se le pasa en «excepto»; y por seguridad nunca
+  toca letreros ni luces de MeshBasicMaterial, transparentes ni escondidos). Se usa en la ciudad (edificios, techos,
+  muros, baño, bocas del metro) y en los lugares (pasaje, eriazo, feria, capilla, nichos). Además, como mallas de copias
+  (InstancedMesh): las **84 ratas** (cada copia elige su cuadro de la tira en el shader), las **cabezas de los faroles**
+  (color por copia: `ciudad.colorFarol`), la **basura** y las **36 piernas y zapatos de la procesión**. Resultado: la
+  ciudad bajó de ~635 a **~370 llamadas de dibujo** (calle central: 390 → 227). Lo que queda es casi todo lo que se
+  mueve o parpadea a propósito.
 - **Caminar más rápido**: 3,1 m/s (antes 2,0) y correr 7,0 (antes 6,2).
 - **Ratas grandes otra vez** (como al principio: 1 a 1,7 m y con su brillo), **más niebla** (0,05 en la ciudad) y
   **lluvia de verdad**: rayas que caen (antes eran puntos de un píxel), con un tamborileo grave en el sonido.

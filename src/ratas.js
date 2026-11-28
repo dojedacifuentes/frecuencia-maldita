@@ -16,17 +16,24 @@ export function crearRatas(escena, ciudad, audio, cantidad = 84) {
   const r = Math.random;
   const geo = new THREE.PlaneGeometry(1.0, 0.36);
   geo.translate(0, 0.18, 0);
+  // todas en una sola malla de copias (antes, una malla y una textura por rata): cada copia lleva su cuadro de la tira
+  const cuadros = new Float32Array(cantidad);
+  geo.setAttribute('aCuadro', new THREE.InstancedBufferAttribute(cuadros, 1));
+  const mat = ps1Material(new THREE.MeshLambertMaterial({ map: base, alphaTest: 0.5, side: THREE.DoubleSide,
+    emissive: 0xffffff, emissiveMap: base, emissiveIntensity: 0.6 }));
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aCuadro;')
+      .replace('#include <uv_vertex>', `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv.x = (vMapUv.x + aCuadro) / ${CUADROS}.0;\n#endif\n#ifdef USE_EMISSIVEMAP\nvEmissiveMapUv.x = (vEmissiveMapUv.x + aCuadro) / ${CUADROS}.0;\n#endif`);
+  };
+  const malla = new THREE.InstancedMesh(geo, mat, cantidad);
+  malla.frustumCulled = false;
+  escena.add(malla);
+  const cero = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let k = 0; k < cantidad; k++) {
-    const t = base.clone();
-    t.repeat.set(1 / CUADROS, 1);
-    t.needsUpdate = true;
-    const mat = ps1Material(new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide,
-      emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.6 }));
-    const m = new THREE.Mesh(geo, mat);
-    escena.add(m);
+    const m = new THREE.Object3D();   // la rata k: posición, giro, escala y si se ve (la malla de copias la dibuja)
     const nido = ciudad.basuras[k % ciudad.basuras.length];
     m.position.set(nido.x + (r() - 0.5) * 2.2, 0.15, nido.z + (r() - 0.5) * 2.2);
-    lista.push({ m, t, nido, vel: new THREE.Vector3(), objetivo: null, cuadro: r() * CUADROS, espera: r() * 3,
+    lista.push({ m, k, nido, vel: new THREE.Vector3(), objetivo: null, cuadro: r() * CUADROS, espera: r() * 3,
       escala: 0.95 + r() * 0.75, chillido: r() * 10, manada: false });
   }
 
@@ -109,10 +116,12 @@ export function crearRatas(escena, ciudad, audio, cantidad = 84) {
       const haciaDerecha = a.vel.dot(derechaCam) > 0;
       a.m.scale.set((haciaDerecha ? 1 : -1) * a.escala, a.escala, 1);
       if (moviendo) a.cuadro = (a.cuadro + dt * (rapida ? 30 : 16)) % CUADROS;
-      a.t.offset.x = Math.floor(a.cuadro) / CUADROS;
       a.m.visible = dist < 30;
+      cuadros[a.k] = Math.floor(a.cuadro);
+      if (a.m.visible) { a.m.updateMatrix(); malla.setMatrixAt(a.k, a.m.matrix); } else malla.setMatrixAt(a.k, cero);
     }
+    malla.instanceMatrix.needsUpdate = true; geo.attributes.aCuadro.needsUpdate = true;
   }
 
-  return { lista, actualizar, manada };
+  return { lista, actualizar, manada, malla };
 }

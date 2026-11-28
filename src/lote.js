@@ -48,3 +48,52 @@ export function crearLote() {
   }
   return { caja, plano, construir };
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Juntar lo quieto de un grupo ya armado (28-nov, «más rápido»): las mallas que nadie mueve, esconde ni recolorea se
+// funden en una malla por material (materiales iguales aunque sean objetos distintos cuentan como uno). Las originales
+// salen de la escena pero siguen existiendo: quien sólo lee su posición (los avisos «E · …») no nota la diferencia.
+// Por seguridad no se tocan: las que están en «excepto» (y lo que cuelga de ellas), las de MeshBasicMaterial (letreros
+// y luces, que a menudo parpadean), las transparentes, las escondidas, las que tienen hijos, las animadas con huesos y
+// las de copias (InstancedMesh). Devuelve cuántas mallas juntó y en cuántas quedaron.
+const firma = (m) => [m.type, m.color?.getHex(), m.emissive?.getHex(), m.emissiveIntensity, m.map?.uuid, m.emissiveMap?.uuid,
+  m.alphaTest, m.side, m.vertexColors, m.fog, m.flatShading, m.wireframe, m.polygonOffset, m.polygonOffsetFactor].join('|');
+export function juntarQuietas(grupo, excepto = []) {
+  const fuera = new Set();
+  for (const o of excepto) o?.traverse?.((x) => fuera.add(x));
+  grupo.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(grupo.matrixWorld).invert();
+  const mats = new Map(), geos = new Map(), quitar = [];
+  const sirve = (m) => m && !m.isMeshBasicMaterial && !m.isShaderMaterial && !m.transparent && m.isMaterial;
+  grupo.traverse((o) => {
+    if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || fuera.has(o) || o.children.length) return;
+    let v = true; for (let p = o; p && p !== grupo; p = p.parent) v = v && p.visible;
+    if (!v) return;
+    const lista = Array.isArray(o.material) ? o.material : [o.material];
+    if (!lista.every(sirve)) return;
+    const base = o.geometry;
+    if (!base.attributes.position || !base.attributes.normal || !base.attributes.uv) return;
+    let g = base.index ? base.toNonIndexed() : base.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(k)) g.deleteAttribute(k);
+    g.applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld));
+    // con varios materiales, cada grupo de caras va con el suyo
+    const trozos = Array.isArray(o.material) && base.groups.length
+      ? base.groups.map((gr) => [lista[gr.materialIndex], gr.start, gr.count]) : [[lista[0], 0, g.attributes.position.count]];
+    for (const [mat, ini, n] of trozos) {
+      const parte = new THREE.BufferGeometry();
+      for (const [k, a] of Object.entries(g.attributes)) parte.setAttribute(k, new THREE.BufferAttribute(a.array.slice(ini * a.itemSize, (ini + n) * a.itemSize), a.itemSize));
+      const f = firma(mat) + (parte.attributes.color ? '|c' : '');
+      if (!mats.has(f)) { mats.set(f, mat); geos.set(f, []); }
+      geos.get(f).push(parte);
+    }
+    quitar.push(o);
+  });
+  for (const o of quitar) o.parent.remove(o);
+  let n = 0;
+  for (const [f, gs] of geos) {
+    const malla = new THREE.Mesh(mergeGeometries(gs, false), mats.get(f));
+    malla.name = 'quietas';
+    grupo.add(malla); n++;
+  }
+  return { juntadas: quitar.length, quedan: n };
+}

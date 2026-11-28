@@ -130,10 +130,11 @@ export function crearSiniestro(escena, ciudad, renderer, audio) {
   }
 
   // basura
-  const basuras = ciudad.basuras.map((p) => {
-    const m = billboard('s_basura', 1.0, 1.25);
-    m.position.copy(p); escena.add(m); return m;
-  });
+  // (en una sola malla de copias: antes eran dieciséis mallas)
+  const molde = billboard('s_basura', 1.0, 1.25);
+  const basuraMalla = new THREE.InstancedMesh(molde.geometry, molde.material, ciudad.basuras.length);
+  basuraMalla.frustumCulled = false; escena.add(basuraMalla);
+  const basuras = ciudad.basuras.map((p) => { const o = new THREE.Object3D(); o.position.copy(p); return o; });
 
   // el perro de mancha: sigue de lejos, se detiene si lo miras
   const perro = billboard('m_perro', 1.0, 1.25);
@@ -223,7 +224,8 @@ export function crearSiniestro(escena, ciudad, renderer, audio) {
   function actualizar(dt, t, jugador, camara, estadoJuego) {
     const pj = jugador.pos;
     for (const a of escena.userData.abrigos || []) mirarCamara(a, camara);
-    for (const b of basuras) mirarCamara(b, camara);
+    basuras.forEach((b, i) => { mirarCamara(b, camara); b.updateMatrix(); basuraMalla.setMatrixAt(i, b.matrix); });
+    basuraMalla.instanceMatrix.needsUpdate = true;
 
     // viejas: si no las miras un rato y estás cerca, se dan vuelta y se acercan un paso
     for (const v of viejas) {

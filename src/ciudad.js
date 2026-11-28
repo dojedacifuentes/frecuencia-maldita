@@ -140,20 +140,25 @@ export function crearCiudad(escena) {
     }
   }
 
-  // faroles en las esquinas de las manzanas
+  // faroles en las esquinas de las manzanas (las cabezas, en una sola malla de copias con color propio)
+  const cabezas = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.25, 0.3), new THREE.MeshBasicMaterial({ color: 0xffffff }), (N + 1) * (N + 1));
+  const ubicar = new THREE.Object3D(), tono = new THREE.Color();
+  let nCabezas = 0;
   for (let i = 0; i <= N; i++) {
     for (let j = 0; j <= N; j++) {
       if (r() < 0.25) continue;
       const x = centroCalle(i) + CALLE / 2 + 0.5, z = centroCalle(j) + CALLE / 2 + 0.5;
       lote.caja(M.poste, 0.14, 4.2, 0.14, x, 2.1, z, { tile: 1.4 });
-      const cabeza = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.3),
-        new THREE.MeshBasicMaterial({ color: 0xffb566 }));
-      cabeza.position.set(x, 4.25, z);
-      grupo.add(cabeza);
-      faroles.push({ pos: new THREE.Vector3(x, 4.1, z), cabeza, fase: r() * 10, falla: r() < 0.35 });
+      ubicar.position.set(x, 4.25, z); ubicar.updateMatrix(); cabezas.setMatrixAt(nCabezas, ubicar.matrix);
+      cabezas.setColorAt(nCabezas, tono.setHex(0xffb566));
+      faroles.push({ pos: new THREE.Vector3(x, 4.1, z), cabeza: nCabezas++, fase: r() * 10, falla: r() < 0.35 });
       colisiones.push({ x0: x - 0.15, x1: x + 0.15, z0: z - 0.15, z1: z + 0.15 });
     }
   }
+
+  cabezas.count = nCabezas; grupo.add(cabezas);
+  // prender o apagar la cabeza de un farol (main.js, con la luz que le toca)
+  function colorFarol(f, hex) { cabezas.setColorAt(f.cabeza, tono.setHex(hex)); cabezas.instanceColor.needsUpdate = true; }
 
   // muros del borde (la ciudad no tiene salida)
   const borde = material('t_concreto', [LADO / 4, 3]);
@@ -184,7 +189,7 @@ export function crearCiudad(escena) {
   lote.construir(grupo);
 
   escena.add(grupo);
-  return { grupo, colisiones, fachadas, faroles, basuras, sitios, enCanal };
+  return { grupo, colisiones, fachadas, faroles, basuras, sitios, enCanal, colorFarol };
 }
 
 function decorarFachada(lote, M, c, lado, alto, r, nom) {

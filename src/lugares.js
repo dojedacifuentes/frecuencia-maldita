@@ -7,6 +7,7 @@
 // Se arma antes que los detalles de la calle (así ningún auto queda metido en un muro); lo que se examina con E se
 // registra después, con registrar().
 import * as THREE from 'three';
+import { juntarQuietas } from './lote.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { material, textura, ps1Material } from './ps1.js';
 import { centroCalle, MANZANA, ACERA } from './ciudad.js';
@@ -446,6 +447,9 @@ export function crearLugares(escena, ciudad) {
     Object.assign(ctx, contexto);
     for (const c of cosasE) interaccion.agregar({ zona: 'ciudad', ...c });
   }
+
+  // lo que no se mueve, junto (una malla por material); lo que se mueve o parpadea queda aparte
+  juntarQuietas(grupo, [cara, columpio, vendedora, santo, ampolleta, ...ropa.map((r) => r.m), ...puestos.map((p) => p.colgante).filter(Boolean), ...velasN]);
 
   return { actualizar, registrar, depurar: { pasaje, cara, columpio, asientos, vendedora, puestos, capilla: { x: cp.x, z: cp.z, zS, zN, xW, xE } } };
 }

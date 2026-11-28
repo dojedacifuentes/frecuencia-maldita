@@ -38,6 +38,7 @@ import { crearManzanas } from './manzanas.js';
 import { crearSangre } from './sangre.js';
 import { crearDano, crearVomito } from './dano.js';
 import { crearMision, DIAL_SOMBRA } from './mision.js';
+import { juntarQuietas } from './lote.js';
 
 pintarControles();
 
@@ -409,6 +410,7 @@ function ponerZona(zona) {
   const enCiudad = zona === 'ciudad';
   const enCerro = zona === 'cerro';   // al aire libre, como la ciudad
   lluvia.visible = enCiudad || enCerro;
+  ratas.malla.visible = enCiudad;
   luzDeCalle.visible = enCiudad;
   luces.forEach((l) => { l.intensity = enCiudad ? l.intensity : 0; });
   hemi.intensity = enCiudad ? 1.4 : enCerro ? 0.8 : 0.35;
@@ -537,7 +539,7 @@ function actualizarTodo(dt, t) {
       l.position.copy(f.pos);
       const parpadeo = f.falla ? (Math.sin(t * 13 + f.fase) > 0.2 || Math.random() < 0.05 ? 0.1 : 1) : 1;
       l.intensity = 22 * parpadeo;
-      f.cabeza.material.color.setHex(parpadeo > 0.5 ? 0xffb566 : 0x2a1a0a);
+      ciudad.colorFarol(f, parpadeo > 0.5 ? 0xffb566 : 0x2a1a0a);
     });
     b.luz.intensity = Math.random() < 0.04 ? 0.5 : 5;
     // el techno de la fiesta se oye apagado cerca del portón abierto
@@ -684,6 +686,10 @@ function actualizarTodo(dt, t) {
   tutorial.actualizar(dt, { pos: jugador.estado.pos, yaw: jugador.estado.yawCam, linterna: jugador.estado.linternaOn,
     dial: juego.dial, afuera: juego.afuera });
 }
+
+// lo quieto de la ciudad (edificios, techos, muros, baño, bocas del metro, fachadas de los interiores) en una malla por
+// material; la radio de la repisa y el portón se mueven: quedan aparte
+juntarQuietas(ciudad.grupo, [ciudad.sitios.bano.radio, ciudad.sitios.porton]);
 
 // la portada muestra el baño con la cámara girando despacio
 jugador.estado.pos.copy(ciudad.sitios.bano.inicio);

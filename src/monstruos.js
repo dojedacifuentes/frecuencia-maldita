@@ -74,15 +74,23 @@ export function crearProcesion(padre, ruta, pares = 9, vel = 1.35) {
   // la tela cae en pliegues por los lados
   for (const s of [-1, 1]) { const f = pieza(g, tela, s * 0.5, 0.95, 0, 0.06, 0.55, LARGO + 0.4); f.rotation.z = s * 0.12; }
   pieza(g, tela, 0, 1.95, LARGO / 2 + 0.1, 0.5, 0.3, 0.4);   // algo como una cabeza, adelante, bajo la tela
+  // piernas y zapatos: dos mallas de copias (antes, 36 mallas); cada pierna gira desde la cadera
   const piernas = [];
+  const mPiernas = new THREE.InstancedMesh(caja, pierna, pares * 2), mZapatos = new THREE.InstancedMesh(caja, zapato, pares * 2);
+  mPiernas.frustumCulled = mZapatos.frustumCulled = false; g.add(mPiernas, mZapatos);
+  const hueso = (x, y, z, sx, sy, sz) => { const o = new THREE.Object3D(); o.position.set(x, y, z); o.scale.set(sx, sy, sz); o.updateMatrix(); return o; };
+  const hPierna = hueso(0, -0.5, 0, 0.11, 1.0, 0.12), hZapato = hueso(0, -1.0, 0.06, 0.13, 0.08, 0.26), mm = new THREE.Matrix4();
   for (let k = 0; k < pares; k++) {
     for (const s of [-1, 1]) {
-      const p = new THREE.Group(); p.position.set(s * 0.2, 1.05, -LARGO / 2 + 0.3 + k * 0.62); g.add(p);
-      pieza(p, pierna, 0, -0.5, 0, 0.11, 1.0, 0.12);
-      pieza(p, zapato, 0, -1.0, 0.06, 0.13, 0.08, 0.26);
+      const p = new THREE.Object3D(); p.position.set(s * 0.2, 1.05, -LARGO / 2 + 0.3 + k * 0.62);
       piernas.push({ p, s });
     }
   }
+  const moverPiernas = () => {
+    piernas.forEach(({ p }, i) => { p.updateMatrix(); mPiernas.setMatrixAt(i, mm.multiplyMatrices(p.matrix, hPierna.matrix)); mZapatos.setMatrixAt(i, mm.multiplyMatrices(p.matrix, hZapato.matrix)); });
+    mPiernas.instanceMatrix.needsUpdate = true; mZapatos.instanceMatrix.needsUpdate = true;
+  };
+  moverPiernas();
   const pr = { g, ruta, tramo: 0, sentido: 1, t: 0, fase: 0, pasoPrevio: 0, vel, largo: LARGO };
   g.position.set(ruta[0].x, 0, ruta[0].z);
   pr.actualizar = (dt, audio) => {
@@ -96,6 +104,7 @@ export function crearProcesion(padre, ruta, pares = 9, vel = 1.35) {
     // todas las piernas al mismo tiempo: izquierdas, luego derechas
     pr.fase += dt * vel * 3.2;
     for (const { p, s } of piernas) p.rotation.x = Math.sin(pr.fase + (s > 0 ? Math.PI : 0)) * 0.42;
+    moverPiernas();
     cuerpo.position.y = 1.45 + Math.abs(Math.sin(pr.fase)) * 0.05;
     const paso = Math.sign(Math.sin(pr.fase));
     if (paso !== pr.pasoPrevio) { pr.pasoPrevio = paso; if (audio) audio.golpes(g.position, pr.distancia ?? 10); }
