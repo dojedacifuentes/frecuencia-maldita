@@ -147,9 +147,54 @@ Emisoras nuevas: 13.9 «canal de mantenimiento» y 77.3 «eco». El final depend
 RECONSTRUCCIÓN, RECONOCIMIENTO o RECHAZO DEL PROTOCOLO (éste termina en la pantalla «03:18»). El baño se va llenando
 de rastros vuelta a vuelta, y el juego recuerda tus partidas en el navegador (`r9:ecos:v1`).
 
+## El cerro y el Sanatorio de la Pendiente (28-nov, `cerro.js`, `sanatorio.js`)
+Ideas de una lluvia de ideas con ChatGPT (chat «Ideas para juego de terror»); imágenes con Flow (Nano Banana, 0 puntos).
+- **La boca del cerro**: al final de la calle central, el muro este tiene una abertura con escalones y el letrero del
+  sanatorio (E · subir al cerro). Desde toda la ciudad se ve el cerro por encima del muro, con ventanas y el sanatorio
+  arriba con dos antenas rojas.
+- **El cerro** (zona aparte): una placita, **137 peldaños** en cuatro tramos entre casas de calamina colgadas del cerro
+  (con muros de contención, techos inclinados, ropa tendida y un mirador), y arriba el patio del sanatorio: garita,
+  cancha con líneas equivocadas, antenas y la fachada (imagen de Flow). Al subir, **pasos que suben detrás de ti al mismo
+  ritmo** (y dan dos más cuando te detienes) y alguien que te mira desde el pie del tercer tramo.
+- **El ascensor** (funicular sin operador): 16 s de subida; se cruza con el carro gemelo lleno de abrigos verdes. En la
+  primera subida de cada vuelta, **el pasajero** del fondo desaparece en un apagón y vuelve sentado a tu lado.
+- **El sanatorio por dentro**: tres pisos de azulejo y damero unidos por una escalera de verdad (se sube caminando).
+  Planta baja: recepción, **archivo con tu ficha** (cuántas veces moriste), guardarropía de abrigos verdes, sala de
+  espera con dos Testigos frente a una tele con estática, enfermería (pilas), la silla eléctrica, el espejo que no te
+  refleja y una silla de ruedas que viene sola. Piso 1: camas que apuntan todas a un rincón vacío, **el comedor de los
+  ausentes** (levantan la cuchara al mismo tiempo; hay un puesto con tu número), la **maqueta de la ciudad** (mover la
+  figurita mueve algo enorme afuera), la tina de agua negra, la grabadora, y **pasos en el piso de arriba** que siguen
+  los tuyos. Piso 2: celdas con mirilla (una **te salta a la cara**: imagen de Flow), **tú durmiendo** en una celda
+  abierta y la **sala de radio**. Al salir de escuchar las cintas (o si corres cerca de ella) se apagan las luces y
+  **la que gatea** viene a cuatro patas por donde pasaste: corriendo se le gana; hay que bajar y salir por el oeste.
+- La ficha y las cintas cuentan como pruebas para el final secreto de R9 («archivo» y «transmisión»).
+- `src/alturas.js`: dónde se pisa (losas y rampas) y choques por piso; el jugador sube y baja escaleras y cae si no hay
+  nada debajo. La ciudad sigue plana.
+
+## La ciudad, menos cuadrada (28-nov, `barrio.js`)
+- Techos distintos en cada edificio: torres escalonadas, estanques de agua sobre patas, casetas de calamina, antenas.
+- **La población circular** (manzana del este, junto a la boca del cerro): ocho casas en anillo con la puerta hacia una
+  cancha; si te quedas quieto en el centro, se abren todas a la vez. Al golpear una, contestan las ocho.
+- **El edificio de las ventanas** (frente a la plaza central): si te detienes a mirarlo, sus luces dibujan a un hombre
+  que gira la cabeza, y se apaga todo.
+
+## Monstruos nuevos (`monstruos.js`)
+- **El Testigo**: una copia tuya con uniforme de hospital y una placa blanca en vez de cara (el cuerpo del protagonista,
+  teñido). No camina: gira hacia ti. Si te mira tres segundos, se oye un obturador y **la sombra sabe dónde estás**.
+  Hay tres en esquinas de la ciudad, dos en la sala de espera y uno en el cerro.
+- **La Procesión**: muchas piernas bajo una tela negra, marchando al unísono por la calle del oeste. Hay que esperar a
+  que pase; si te toca, vuelves al baño.
+- **El Paraguas**: un paraguas negro con dos piernas flacas, al noreste. Oye el movimiento: si te quedas quieto, pasa
+  de largo; si te mueves cerca, corre hacia ti.
+- **La que gatea**: la paciente del piso 2 del sanatorio. Modelo 3D de TRELLIS sacado de una imagen de Flow
+  (`herramientas/trellis.py`, `preparar_monstruos.py`: 14 mil triángulos, 720 KB). El Testigo iba a ser otro modelo de
+  TRELLIS, pero Hugging Face cortó la cuota gratuita del día; se hizo con el cuerpo del protagonista.
+- Sustos de pantalla en `sustos.js` (el rostro, el temblor). Sonidos nuevos en `audio.js`: `pasoEn` (un paso en otro
+  lugar) y `obturador`.
+
 ## Peso
-Unos 5,3 MB en total (`npm run build` → `dist/`): código 855 KB (226 KB comprimido), protagonista 3D 633 KB,
-imágenes y texturas 3,2 MB, trocitos de video 0,3 MB. El sonido no pesa: se genera en vivo.
+Unos 7 MB en total (`npm run build` → `dist/`): código ~900 KB, protagonista 3D 633 KB, la que gatea 720 KB, imágenes y
+texturas ~4 MB, trocitos de video 0,3 MB. El sonido no pesa: se genera en vivo.
 
 ## Recorrido
 1. **El baño** (03:17). Cada vez que vuelves está más podrido (la luz cambia de color).

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { material, ps1Material } from './ps1.js';
 import { cuerpoListo, crearCuerpo3d } from './cuerpo.js';
+import { chocaEnAltura } from './alturas.js';
 
 const RADIO = 0.32;
 const diferenciaAngular = (destino, actual) => Math.atan2(Math.sin(destino - actual), Math.cos(destino - actual));
@@ -97,6 +98,7 @@ export function crearJugador(escena) {
 
   const estado = {
     raiz, cuerpo, linterna, brasa, techo: Infinity, es3d: cuerpoListo(),
+    suelo: null, vy: 0,   // suelo(x, z, yPies): altura de lo que se pisa (escaleras, pisos); techo: alto sobre los pies
     get linternaOn() { return linterna.intensity > 0; },
     set linternaOn(v) { linterna.intensity = v ? 45 : 0; },
     pos: raiz.position, rumbo: 0, yawCam: Math.PI, pitchCam: 0.18, fase: 0, velocidad: 0, corriendo: false,
@@ -106,6 +108,7 @@ export function crearJugador(escena) {
   function aplicarColisiones(p, colisiones) {
     for (const c of colisiones) {
       if (c.soloCamara) continue;   // p. ej. el tren en marcha: aparta la cámara, no al jugador
+      if (!chocaEnAltura(c, p.y - 0.15)) continue;   // otro piso del edificio
       const qx = Math.max(c.x0, Math.min(p.x, c.x1));
       const qz = Math.max(c.z0, Math.min(p.z, c.z1));
       const dx = p.x - qx, dz = p.z - qz;
@@ -130,6 +133,7 @@ export function crearJugador(escena) {
     let t = largo;
     for (const c of colisiones) {
       if (c.bajo) continue;   // barandas y canal: la cámara pasa por encima
+      if (c.y0 !== undefined && (o.y < c.y0 || o.y > c.y1)) continue;
       let tmin = 0, tmax = largo;
       for (const [oo, dd, a, b] of [[o.x, dir.x, c.x0 - 0.15, c.x1 + 0.15], [o.z, dir.z, c.z0 - 0.15, c.z1 + 0.15]]) {
         if (Math.abs(dd) < 1e-6) { if (oo < a || oo > b) { tmin = 1; tmax = 0; } continue; }
@@ -204,6 +208,20 @@ export function crearJugador(escena) {
       estado.quieto = true;
     }
     aplicarColisiones(estado.pos, colisiones);
+    // el suelo: subir y bajar escaleras pegado a los peldaños; si no hay nada debajo, caer
+    if (estado.suelo) {
+      const p = estado.pos, pies = p.y - 0.15;
+      const h = estado.suelo(p.x, p.z, pies);
+      if (h >= pies - 0.35) {
+        p.y = 0.15 + (h > pies ? pies + (h - pies) * Math.min(1, dt * 16) : h);
+        estado.vy = 0;
+      } else {
+        estado.vy = Math.min(30, estado.vy + 20 * dt);
+        const n = Math.max(h, pies - estado.vy * dt);
+        p.y = 0.15 + n;
+        if (n === h) estado.vy = 0;
+      }
+    }
     if (rumboElegido !== null) {
       estado.rumbo += diferenciaAngular(rumboElegido, estado.rumbo) * (1 - Math.exp(-13 * dt));
     }
@@ -228,7 +246,8 @@ export function crearJugador(escena) {
     const dir = new THREE.Vector3(-Math.sin(estado.yawCam) * Math.cos(estado.pitchCam), 0, -Math.cos(estado.yawCam) * Math.cos(estado.pitchCam));
     // por encima del hombro derecho: el personaje queda a un lado y se ve lo que viene
     const der = new THREE.Vector3(-Math.cos(estado.yawCam), 0, Math.sin(estado.yawCam));
-    const cabezaPos = new THREE.Vector3(estado.pos.x, 1.55, estado.pos.z);
+    const piso = estado.pos.y - 0.15;   // 0 en la calle; más arriba en las escaleras y los pisos altos
+    const cabezaPos = new THREE.Vector3(estado.pos.x, piso + 1.55, estado.pos.z);
     const desvio = Math.min(0.62, Math.max(0, distanciaLibre(cabezaPos, der, 0.8, colisiones) - 0.18));
     const base = cabezaPos.clone().addScaledVector(der, desvio);
     const libre = distanciaLibre(base, dir, dist, colisiones);
@@ -237,8 +256,8 @@ export function crearJugador(escena) {
     estado.distanciaCamara = limite < estado.distanciaCamara ? limite
       : estado.distanciaCamara + (limite - estado.distanciaCamara) * (1 - Math.exp(-5 * dt));
     const d = estado.distanciaCamara;
-    camara.position.set(base.x + dir.x * d, Math.min(estado.techo - 0.25, 1.55 + Math.sin(estado.pitchCam) * d + 0.2), base.z + dir.z * d);
-    camara.lookAt(base.x - dir.x * 3, 1.3, base.z - dir.z * 3);
+    camara.position.set(base.x + dir.x * d, piso + Math.min(estado.techo - 0.25, 1.55 + Math.sin(estado.pitchCam) * d + 0.2), base.z + dir.z * d);
+    camara.lookAt(base.x - dir.x * 3, piso + 1.3, base.z - dir.z * 3);
   }
 
   return { estado, actualizar, aplicarColisiones, posar, reiniciarSeguimiento };

@@ -5,6 +5,8 @@ import { LADO, N, MANZANA, ACERA, centroManzana } from './ciudad.js';
 import { ORIGEN } from './fiesta.js';
 import { MO } from './metro.js';
 import { INTERIORES } from './interiores.js';
+import { CO } from './cerro.js';
+import { SO } from './sanatorio.js';
 
 const S = 768;                       // lado del plano en píxeles
 const TINTA = '#2b2620', ROJO = '#9e1b15', LAPIZ = 'rgba(60,52,44,.75)';
@@ -282,10 +284,18 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
   { const g = baseInterior.getContext('2d'); papel(g); texto(g, 'AQUÍ ADENTRO NO HAY PLANO', S / 2, S / 2 - 40, { tam: 16, negrita: true }); }
   const vistasInterior = Object.fromEntries(Object.entries(INTERIORES).map(([k, v]) => [k,
     { aPx: (x, z) => [(x - v.o.x + 14) / 28 * S, (z - v.o.z + 14) / 28 * S], k: S / 28 }]));
+  // el cerro y el sanatorio: papel con su nombre y la flecha (el camino lo dice el objetivo de arriba)
+  const baseCerro = lienzo(), baseSanatorio = lienzo();
+  { const g = baseCerro.getContext('2d'); papel(g); texto(g, 'EL CERRO · 137 PELDAÑOS', S / 2, S / 2 - 40, { tam: 16, negrita: true }); }
+  { const g = baseSanatorio.getContext('2d'); papel(g); texto(g, 'SANATORIO DE LA PENDIENTE', S / 2, S / 2 - 52, { tam: 16, negrita: true }); texto(g, 'tres pisos · escalera al fondo (este)', S / 2, S / 2 - 30, { tam: 12 }); }
+  const vistaCerro = { aPx: (x, z) => [(x - CO.x + 50) / 100 * S, (z - CO.z + 90) / 140 * S], k: S / 120 };
+  const vistaSanatorio = { aPx: (x, z) => [(x - SO.x + 22) / 44 * S, (z - SO.z + 22) / 44 * S], k: S / 44 };
   function vistaDe(zona) {
     if (zona === 'ciudad') return [vistaCiudad, baseCiudad];
     if (zona === 'metro') return [vistaMetro, baseMetro];
     if (vistasInterior[zona]) return [vistasInterior[zona], baseInterior];
+    if (zona === 'cerro') return [vistaCerro, baseCerro];
+    if (zona === 'sanatorio') return [vistaSanatorio, baseSanatorio];
     return [vistaFiesta, baseFiesta];
   }
 

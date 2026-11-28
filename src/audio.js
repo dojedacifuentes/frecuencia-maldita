@@ -179,6 +179,29 @@ export function crearAudio() {
     s.connect(f).connect(g).connect(salida); disparo(s, 0.16);
   }
 
+  // un paso en otro lugar (los pasos que suben detrás de ti por la escalera del cerro)
+  function pasoEn(pos, dist, corriendo = false) {
+    const s = fuenteRuido(false); const f = filtro('bandpass', corriendo ? 620 : 380, 1.1); const g = ganancia(0);
+    const t = ctx.currentTime, v = (corriendo ? 0.2 : 0.14) * volDist(dist, 3);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    s.connect(f).connect(g).connect(paneo(pos)).connect(salida); disparo(s, 0.18);
+  }
+  // el obturador del Testigo: un clic seco y el arrastre de la película
+  function obturador(pos, dist) {
+    const t = ctx.currentTime, v = 0.5 * volDist(dist, 4), pn = paneo(pos); pn.connect(salida);
+    for (const [dt, fr] of [[0, 2400], [0.07, 1500]]) {
+      const s = fuenteRuido(false); const f = filtro('bandpass', fr, 3); const g = ganancia(0);
+      g.gain.setValueAtTime(0.0001, t + dt); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + dt + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.05);
+      s.connect(f).connect(g).connect(pn); s.start(t + dt); s.stop(t + dt + 0.08);
+    }
+    const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(70, t + 0.12);
+    const g2 = ganancia(0); g2.gain.setValueAtTime(0.0001, t + 0.12); g2.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * 0.12), t + 0.14);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(g2).connect(pn); o.start(t + 0.12); o.stop(t + 0.55);
+  }
+
   function chillido(pos, dist) {
     const o = ctx.createOscillator(); o.type = 'sawtooth';
     const t = ctx.currentTime; const f0 = 2600 + Math.random() * 1800;
@@ -350,7 +373,7 @@ export function crearAudio() {
     salida.gain.setTargetAtTime(v ? 0.001 : 0.9, ctx.currentTime, 0.18);
   }
 
-  return { silencioAnomalo, ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
+  return { pasoEn, obturador, silencioAnomalo, ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
     tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo, bocina,
     lechoCiudad(v) { if (lechos.ok) { lechos.viento.gain.setTargetAtTime(0.07 * v, ctx.currentTime, 0.4); } } };
 }

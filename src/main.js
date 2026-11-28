@@ -29,6 +29,11 @@ import { crearLugares } from './lugares.js';
 import { crearMetro } from './metro.js';
 import { crearInteriores, INTERIORES } from './interiores.js';
 import { crearDirector } from './director-terror.js';
+import { crearSuelo } from './alturas.js';
+import { crearCerro } from './cerro.js';
+import { crearSanatorio } from './sanatorio.js';
+import { crearBarrio } from './barrio.js';
+import { crearSustos } from './sustos.js';
 
 pintarControles();
 
@@ -40,6 +45,8 @@ const NIEBLAS = {
   fiesta: { color: new THREE.Color(0x2a0707), densidad: 0.045 },
   pasillos: { color: new THREE.Color(0x1a0303), densidad: 0.07 },
   metro: { color: new THREE.Color(0x0c0e0c), densidad: 0.055 },
+  cerro: { color: new THREE.Color(0x3a434c), densidad: 0.026 },
+  sanatorio: { color: new THREE.Color(0x0c100e), densidad: 0.06 },
   ...Object.fromEntries(Object.entries(INTERIORES).map(([k, v]) => [k, { color: new THREE.Color(v.niebla.color), densidad: v.niebla.densidad }])),
 };
 escena.background = NIEBLAS.ciudad.color.clone();
@@ -65,6 +72,13 @@ const detalles = crearDetalles(escena, ciudad);
 // el protagonista en 3D; si el modelo no carga, queda el muñeco de cajas
 await cargarCuerpo().catch((e) => console.warn('modelo 3D no disponible, uso el de cajas', e));
 const jugador = crearJugador(escena);
+// escaleras y pisos: el cerro y el sanatorio (zonas aparte); la ciudad sigue siendo plana
+const suelo = crearSuelo();
+jugador.estado.suelo = (x, z, y) => suelo.altura(juego.zona, x, z, y);
+const cerro = crearCerro(escena, suelo);
+const sanatorio = crearSanatorio(escena, suelo);
+const barrio = crearBarrio(escena, ciudad);   // boca del cerro, techos, población circular, ventanas y monstruos
+const sustos = crearSustos({ audio, estadoJuego: { susto: (v) => estadoJuego.susto(v) } });
 const ratas = crearRatas(escena, ciudad, audio);
 const siniestro = crearSiniestro(escena, ciudad, renderer, audio);
 const fiesta = crearFiesta(escena, () => crearJugador(escena), audio);
@@ -76,6 +90,8 @@ const emisoras = crearEmisoras(audio);
 const inventario = crearInventario(audio, hud);
 const puerta = crearPuerta(escena, ciudad);
 plano.agregarLugar({ zona: 'ciudad', pos: puerta.pos, nota: 'puerta con candado' });
+plano.agregarLugar({ zona: 'ciudad', pos: ciudad.sitios.bocaCerro, nota: 'cerro y sanatorio' });
+plano.agregarLugar({ zona: 'ciudad', pos: ciudad.sitios.poblacion, nota: 'población' });
 const rarezas = crearRarezas({ escena, ciudad, camara, audio, hud, interaccion, plano, pistas, leerJuego: () => juego });
 const telefonos = crearTelefonos({ escena, ciudad, siniestro, audio, hud, interaccion, inventario, plano, pistas,
   estadoJuego: { susto: (v) => estadoJuego.susto(v) }, leerJuego: () => juego });
@@ -281,28 +297,39 @@ function irA(zona, lado) {
   juego.estado = 'transicion'; juego.transicion = 0; audio.golpe(0.4);
   juego.destino = () => {
     const desde = juego.zona;
-    const l = (zona === 'ciudad' ? { ...metro.llegadas.ciudad, ...interiores.llegadas.ciudad }
-      : zona === 'metro' ? metro.llegadas.metro : interiores.llegadas[zona])[lado];
+    const bc = ciudad.sitios.bocaCerro;
+    const l = (zona === 'ciudad' ? { ...metro.llegadas.ciudad, ...interiores.llegadas.ciudad, cerro: { x: bc.x - 2.2, z: bc.z, rumbo: -Math.PI / 2 } }
+      : zona === 'metro' ? metro.llegadas.metro : zona === 'cerro' ? cerro.llegadas.cerro
+        : zona === 'sanatorio' ? sanatorio.llegadas.sanatorio : interiores.llegadas[zona])[lado];
     if (interiores.tiene(desde)) interiores.salir(desde);
+    if (desde === 'sanatorio') sanatorio.salir();
+    if (zona === 'sanatorio') sanatorio.entrar();
     ponerZona(zona);
     if (zona === 'metro') metro.reiniciar();
     if (interiores.tiene(zona)) interiores.entrar(zona);
     const nb = NIEBLAS[zona];
     escena.fog.color.copy(nb.color); escena.background.copy(nb.color); escena.fog.density = nb.densidad;
-    jugador.estado.pos.set(l.x, 0.15, l.z); jugador.estado.rumbo = l.rumbo; jugador.estado.yawCam = l.rumbo;
+    jugador.estado.pos.set(l.x, (l.y ?? 0) + 0.15, l.z); jugador.estado.rumbo = l.rumbo; jugador.estado.yawCam = l.rumbo; jugador.estado.vy = 0;
     hud.limpiar();
     const TEXTOS = {
       metro: 'Estación 317.\nHuele a fierro y a orina.',
       depto: 'Tu departamento.\nHuele a encierro y a algo dulce.',
       radio: 'Radio 31.7.\nEl letrero «AL AIRE» está encendido. No hay nadie.',
       cine: 'Cine Rex.\nLa película ya empezó. Siempre ya empezó.',
+      'cerro:abajo': 'El cerro. 137 peldaños hasta el sanatorio.\nAlguien baja. No: alguien sube.',
+      'cerro:patio': 'El patio del sanatorio.\nAbajo, la ciudad parece una sola pieza iluminada.',
+      sanatorio: 'Sanatorio de la Pendiente.\nHuele a cloro y a algo que se pudre debajo.',
+      'ciudad:cerro': 'Volviste a la ciudad.\nEl sanatorio te mira por encima del muro.',
     };
-    hud.decir(TEXTOS[zona] || (lado === 'norte' ? 'Saliste al otro lado del canal.\nLa capilla. El portón está al norte.'
+    hud.decir(TEXTOS[`${zona}:${lado}`] || TEXTOS[zona] || (lado === 'norte' ? 'Saliste al otro lado del canal.\nLa capilla. El portón está al norte.'
       : lado === 'sur' ? 'Volviste a la plaza.' : 'Volviste a la calle.'), 3.5);
   };
 }
 metro.registrar(interaccion, irA);
 interiores.registrar(interaccion, { audio, siniestro, plano, pistas, hud, estadoJuego, irA });
+cerro.registrar(interaccion, { irA, hud });
+sanatorio.registrar(interaccion, { irA, inventario, director, juego, sustos, audio, estadoJuego });
+barrio.registrar(interaccion, { irA, audio, jugador: () => jugador.estado.pos });
 
 // ---- qué hacer ahora: el objetivo de arriba y hacia dónde apunta el minimapa
 // si el destino queda al otro lado del canal y estás al sur, primero el puente
@@ -315,6 +342,8 @@ function objetivoActual(pj, enBano) {
   const fono = juego.zona === 'ciudad' && telefonos.sonando();
   if (fono) return [`¡CONTESTA EL TELÉFONO! (E) Está sonando cerca: quedan ${fono.quedan} segundos.`, fono.pos];
   if (juego.zona === 'metro') return metro.objetivo(pj);
+  if (juego.zona === 'cerro') return cerro.objetivo(pj);
+  if (juego.zona === 'sanatorio') return sanatorio.objetivo(pj);
   if (interiores.tiene(juego.zona)) return interiores.objetivo(juego.zona);
   if (juego.zona === 'fiesta') return ['Cruza la pista hasta la puerta del norte, donde baila tu doble.', { x: ORIGEN.x, z: fiesta.zona.zNorte }];
   if (juego.zona === 'pasillos') return ['Corre por el pasillo hasta la luz del fondo. No te detengas.', { x: ORIGEN.x, z: fiesta.zona.zFin }];
@@ -343,13 +372,15 @@ function numeros() {
 function ponerZona(zona) {
   juego.zona = zona;
   const enCiudad = zona === 'ciudad';
-  lluvia.visible = enCiudad;
+  const enCerro = zona === 'cerro';   // al aire libre, como la ciudad
+  lluvia.visible = enCiudad || enCerro;
   luzDeCalle.visible = enCiudad;
   luces.forEach((l) => { l.intensity = enCiudad ? l.intensity : 0; });
-  hemi.intensity = enCiudad ? 1.4 : 0.35;
-  ambiente.intensity = enCiudad ? 0.8 : 0.35;
-  jugador.estado.techo = enCiudad ? Infinity : zona === 'metro' ? 3.7 : INTERIORES[zona] ? INTERIORES[zona].techo : 5.6;
-  audio.lechoCiudad(enCiudad ? 1 : 0.2);
+  hemi.intensity = enCiudad ? 1.4 : enCerro ? 0.8 : 0.35;
+  ambiente.intensity = enCiudad ? 0.8 : enCerro ? 0.5 : zona === 'sanatorio' ? 0.45 : 0.35;
+  jugador.estado.techo = enCiudad || enCerro ? Infinity : zona === 'metro' ? 3.7 : zona === 'sanatorio' ? 3.6
+    : INTERIORES[zona] ? INTERIORES[zona].techo : 5.6;
+  audio.lechoCiudad(enCiudad ? 1 : enCerro ? 0.6 : 0.2);
 }
 
 function entrarFiesta() {
@@ -378,6 +409,7 @@ function despertar() {
   metro.reiniciar();
   telefonos.reiniciar();
   calles.reiniciar();
+  cerro.reiniciar(); sanatorio.reiniciar(); barrio.reiniciar(); sustos.limpiar();
   juego.tiempoAfuera = 0; juego.afuera = false; juego.modo317 = false; juego.dial = 87.9; juego.halladas = 0; juego.porton = false;
   ciudad.sitios.porton.position.y = 3;
   for (const f of siniestro.frecuencias) f.hallada = false;
@@ -416,7 +448,8 @@ function cuadro() {
 
 function colisionesActuales() {
   return juego.zona === 'ciudad' ? ciudad.colisiones : juego.zona === 'metro' ? metro.col
-    : interiores.tiene(juego.zona) ? interiores.col[juego.zona] : fiesta.zona.col;
+    : juego.zona === 'cerro' ? cerro.col : juego.zona === 'sanatorio' ? sanatorio.col
+      : interiores.tiene(juego.zona) ? interiores.col[juego.zona] : fiesta.zona.col;
 }
 
 function actualizarTodo(dt, t) {
@@ -443,8 +476,9 @@ function actualizarTodo(dt, t) {
     }
   }
   juego.modo317 = tieneRadio && Math.abs(juego.dial - 31.7) < 0.6;
-  let peligro = 0;
+  let peligro = 0, nieblaExtra = 0;
   const beat = ((t * 126) / 60) % 1;
+  const ctxZonas = { estadoJuego, sustos, hud, siniestro };
   if (juego.zona === 'ciudad') {
     peligro = siniestro.actualizar(dt, t, jugador.estado, camara, estadoJuego).peligro || 0;
     ratas.actualizar(dt, jugador.estado, camara, ciudad.colisiones, jugador.estado.linternaOn, t);
@@ -456,6 +490,8 @@ function actualizarTodo(dt, t) {
     interiores.actualizarCiudad(t);
     if (juego.estado === 'jugando') telefonos.actualizar(dt, t, jugador.estado);
     calles.actualizar(dt, t, jugador.estado);
+    const tranquilo = juego.estado !== 'jugando' || enBano || !juego.afuera || tutorial.activo;
+    peligro = Math.max(peligro, barrio.actualizar(dt, t, jugador.estado, camara, audio, { ...ctxZonas, tranquilo }).peligro);
     // faroles: las 6 luces van a los faroles más cercanos; algunos fallan
     const cerca = ciudad.faroles.map((f) => [f, f.pos.distanceToSquared(pj)]).sort((a, c) => a[1] - c[1]).slice(0, 6);
     cerca.forEach(([f], i) => {
@@ -474,6 +510,15 @@ function actualizarTodo(dt, t) {
     audio.setFiesta(0, 200);
   } else if (interiores.tiene(juego.zona)) {
     peligro = interiores.actualizar(juego.zona, dt, t, jugador.estado, camara, audio).peligro;
+    audio.setFiesta(0, 200);
+  } else if (juego.zona === 'cerro') {
+    const c = cerro.actualizar(dt, t, jugador.estado, camara, audio, ctxZonas);
+    peligro = c.peligro; nieblaExtra = c.niebla || 0;
+    audio.setFiesta(0, 200);
+  } else if (juego.zona === 'sanatorio') {
+    peligro = sanatorio.actualizar(dt, t, jugador.estado, camara, audio, ctxZonas).peligro;
+    const k = sanatorio.piso(pj);
+    if (k !== juego.pisoSanatorio) { if (juego.pisoSanatorio !== undefined && juego.estado === 'jugando') { hud.limpiar(); hud.decir(sanatorio.NOMBRES[k], 2.2); } juego.pisoSanatorio = k; }
     audio.setFiesta(0, 200);
   } else {
     const f = fiesta.actualizar(dt, t, jugador.estado, camara, estadoJuego, beat);
@@ -524,7 +569,7 @@ function actualizarTodo(dt, t) {
 
   // La señal despeja un poco la niebla y conserva el color del hormigón.
   const nz = NIEBLAS[juego.zona];
-  const objetivoNiebla = juego.modo317 ? nz.densidad * 0.84 : nz.densidad + (juego.zona === 'ciudad' ? Math.min(0.02, juego.vueltas * 0.006) : 0);
+  const objetivoNiebla = nieblaExtra + (juego.modo317 ? nz.densidad * 0.84 : nz.densidad + (juego.zona === 'ciudad' ? Math.min(0.02, juego.vueltas * 0.006) : 0));
   escena.fog.density += (objetivoNiebla - escena.fog.density) * Math.min(1, dt * 2);
   escena.fog.color.lerp(nz.color, Math.min(1, dt * 3)); escena.background.copy(escena.fog.color);
 
@@ -540,10 +585,11 @@ function actualizarTodo(dt, t) {
     const caida = juego.modo317 ? -8 : 14;   // en 31.7 la lluvia sube
     for (let i = 0; i < NG; i++) { let y = pos.getY(i) - dt * caida; if (y < 0) y += 12; if (y > 12) y -= 12; pos.setY(i, y); }
     pos.needsUpdate = true;
-    lluvia.position.set(camara.position.x, 0, camara.position.z);
+    lluvia.position.set(camara.position.x, Math.max(0, camara.position.y - 6), camara.position.z);
   }
 
   director.actualizar(dt, t, {enBano, tieneRadio, tutorial: tutorial.activo, peligro});
+  sustos.actualizar(dt, camara);   // el temblor va después de mover la cámara
 
   // el portón: con las tres manchas se abre y lleva a la fiesta
   const velo = document.getElementById('velo');
@@ -605,6 +651,6 @@ cuadro();
 
 // para pruebas: window.__juego
 window.__juego = { juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
-  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores, director,
+  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores, director, cerro, sanatorio, barrio, suelo, sustos,
   // adelanta la simulación (para probar aunque el navegador vaya lento) y dibuja una vez
   avanzar(seg, pasoDt = 1 / 30) { for (let k = 0; k < seg / pasoDt; k++) { tiempoJuego += pasoDt; actualizarTodo(pasoDt, tiempoJuego); } dibujar(escena, camara, tiempoJuego); } };

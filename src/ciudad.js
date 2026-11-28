@@ -70,7 +70,7 @@ export function crearCiudad(escena) {
 
   const materialesMuro = ['t_ladrillo', 't_concreto', 't_bloque', 't_ladrillo', 't_bloque', 't_azulejo', 't_bloque'];
   const planos = { plaza_sur: [2, N - 1], plaza_centro: [2, 2] };
-  const vacias = { eriazo: [1, 3], capilla: [2, 0] };   // manzanas sin edificio (ver lugares.js)
+  const vacias = { eriazo: [1, 3], capilla: [2, 0], poblacion: [4, 2] };   // manzanas sin edificio (lugares.js, barrio.js)
 
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
@@ -143,7 +143,12 @@ export function crearCiudad(escena) {
 
   // muros del borde (la ciudad no tiene salida)
   const borde = material('t_concreto', [LADO / 4, 3]);
-  for (const [x, z, w, d] of [[0, -MITAD - 0.5, LADO + 2, 1], [0, MITAD + 0.5, LADO + 2, 1], [-MITAD - 0.5, 0, 1, LADO + 2], [MITAD + 0.5, 0, 1, LADO + 2]]) {
+  // el muro este tiene una boca al final de la calle central: por ahí se sube al cerro (barrio.js, cerro.js)
+  const BOCA = { z0: centroCalle(2) - 2.6, z1: centroCalle(2) + 2.6 };
+  sitios.bocaCerro = new THREE.Vector3(MITAD - 0.5, 0, centroCalle(2));
+  const largoS = BOCA.z0 + MITAD + 1, largoN = MITAD + 1 - BOCA.z1;
+  for (const [x, z, w, d] of [[0, -MITAD - 0.5, LADO + 2, 1], [0, MITAD + 0.5, LADO + 2, 1], [-MITAD - 0.5, 0, 1, LADO + 2],
+    [MITAD + 0.5, -MITAD - 1 + largoS / 2, 1, largoS], [MITAD + 0.5, BOCA.z1 + largoN / 2, 1, largoN]]) {
     const m = caja(w, 12, d, borde);
     m.position.set(x, 6, z);
     grupo.add(m);
