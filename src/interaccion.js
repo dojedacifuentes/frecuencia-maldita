@@ -45,5 +45,5 @@ export function crearInteraccion(hud) {
     return true;
   }
 
-  return { agregar, actualizar, usar, get hay() { return !!elegida; } };
+  return { agregar, actualizar, usar, get hay() { return !!elegida; }, depurar: cosas };
 }

@@ -74,6 +74,7 @@ export function crearJugador(escena) {
   const raiz = new THREE.Group();
   const cuerpo = new THREE.Group();
   const figura = cuerpoListo() ? crearCuerpo3d() : cuerpoDeCajas();
+  if (figura.estado) figura.malla.material = figura.malla.material.clone();   // propio: el daño no se pinta en sus copias
   cuerpo.add(figura.malla);
   raiz.add(cuerpo);
   const brasa = figura.brasa;
@@ -103,6 +104,7 @@ export function crearJugador(escena) {
     set linternaOn(v) { linterna.intensity = v ? 45 : 0; },
     pos: raiz.position, rumbo: 0, yawCam: Math.PI, pitchCam: 0.18, fase: 0, velocidad: 0, corriendo: false,
     pasos: 0, quieto: true, esperaCamara: 0, distanciaCamara: 2.9,
+    accion: null,   // { tipo: 'vomita', t, dur }: mientras dura, no camina
   };
 
   function aplicarColisiones(p, colisiones) {
@@ -196,9 +198,10 @@ export function crearJugador(escena) {
     const angulo = mag ? Math.atan2(entrada.lado, entrada.adelante) : null;
     if (angulo !== null && angulo !== anguloPulsado) rumboElegido = estado.yawCam + angulo;
     anguloPulsado = angulo;
-    const vel = entrada.correr ? 6.2 : 2.0;
-    estado.corriendo = entrada.correr && mag > 0;
-    if (mag > 0.01) {
+    const vel = entrada.correr ? 7.0 : 3.1;
+    const ocupado = !!estado.accion;
+    estado.corriendo = entrada.correr && mag > 0 && !ocupado;
+    if (mag > 0.01 && !ocupado) {
       estado.pos.x += Math.sin(rumboElegido) * vel * dt;
       estado.pos.z += Math.cos(rumboElegido) * vel * dt;
       estado.velocidad = vel;
@@ -222,7 +225,7 @@ export function crearJugador(escena) {
         if (n === h) estado.vy = 0;
       }
     }
-    if (rumboElegido !== null) {
+    if (rumboElegido !== null && !ocupado) {
       estado.rumbo += diferenciaAngular(rumboElegido, estado.rumbo) * (1 - Math.exp(-13 * dt));
     }
     raiz.rotation.y = estado.rumbo;
@@ -238,9 +241,13 @@ export function crearJugador(escena) {
     }
     // el paso: la fase avanza con la velocidad (un paso por medio ciclo)
     const pasoAntes = Math.sin(estado.fase);
-    estado.fase += dt * (estado.velocidad > 0 ? (estado.corriendo ? 13 : 6.5) : 0);
+    estado.fase += dt * (estado.velocidad > 0 ? (estado.corriendo ? 14 : 8.6) : 0);
     if (estado.velocidad > 0 && Math.sign(pasoAntes) !== Math.sign(Math.sin(estado.fase))) estado.pasos++;
-    posar(estado.velocidad > 0 ? (estado.corriendo ? 'corre' : 'camina') : 'quieto', estado.fase, t, 0, dt, camara);
+    if (estado.accion) {
+      const a = estado.accion; a.t += dt;
+      posar(a.tipo, 0, t, Math.min(1, a.t / a.dur), dt, camara);
+      if (a.t >= a.dur) estado.accion = null;
+    } else posar(estado.velocidad > 0 ? (estado.corriendo ? 'corre' : 'camina') : 'quieto', estado.fase, t, 0, dt, camara);
     // cámara detrás del hombro
     const dist = 3.1;
     const dir = new THREE.Vector3(-Math.sin(estado.yawCam) * Math.cos(estado.pitchCam), 0, -Math.cos(estado.yawCam) * Math.cos(estado.pitchCam));
@@ -260,5 +267,5 @@ export function crearJugador(escena) {
     camara.lookAt(base.x - dir.x * 3, piso + 1.3, base.z - dir.z * 3);
   }
 
-  return { estado, actualizar, aplicarColisiones, posar, reiniciarSeguimiento };
+  return { estado, actualizar, aplicarColisiones, posar, reiniciarSeguimiento, figura };
 }

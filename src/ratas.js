@@ -21,13 +21,13 @@ export function crearRatas(escena, ciudad, audio, cantidad = 84) {
     t.repeat.set(1 / CUADROS, 1);
     t.needsUpdate = true;
     const mat = ps1Material(new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide,
-      emissive: 0x8a7a70, emissiveMap: t, emissiveIntensity: 0.55, color: 0xa08f84 }));
+      emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.6 }));
     const m = new THREE.Mesh(geo, mat);
     escena.add(m);
     const nido = ciudad.basuras[k % ciudad.basuras.length];
     m.position.set(nido.x + (r() - 0.5) * 2.2, 0.15, nido.z + (r() - 0.5) * 2.2);
     lista.push({ m, t, nido, vel: new THREE.Vector3(), objetivo: null, cuadro: r() * CUADROS, espera: r() * 3,
-      escala: 0.29 + r() * 0.16, chillido: r() * 10, manada: false });
+      escala: 0.95 + r() * 0.75, chillido: r() * 10, manada: false });
   }
 
   const tmp = new THREE.Vector3();

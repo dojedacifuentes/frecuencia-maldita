@@ -5,9 +5,9 @@ export const FRECUENCIAS = [13.9, 31.7, 66.0, 77.3, 94.3, 101.7];
 
 const GUIA = [
   'Si me oyes, despertaste otra vez en el baño.',
-  'Las manchas sólo se oyen en 31.7. Ahí la señal te guía: mientras más fuerte, más cerca.',
-  'Cuando estés frente a una mancha, tócala. Te va a contar algo.',
-  'Tres manchas abren el portón de la fábrica R9, al norte.',
+  'Tu sombra te espera en el muro frente a la plaza. La frecuencia está escrita arriba: sintonízala.',
+  'Cuando la radio te diga dónde, ve. Aunque sea al cerro. Aunque sea al sanatorio.',
+  'Tres recuerdos abren el portón de la fábrica R9, al norte. El último está donde despertaste.',
   'Las viejas que miran la pared saben dónde están las manchas. Tócales el hombro.',
   'El charco de la plaza central también sabe. Mírate en él.',
   'Si algo te sigue, alúmbralo con la linterna.',

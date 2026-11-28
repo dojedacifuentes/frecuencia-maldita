@@ -310,6 +310,7 @@ export function crearSiniestro(escena, ciudad, renderer, audio) {
 
     // frecuencias: con el dial en 317 y cerca, la mancha se despierta
     for (const fr of frecuencias) {
+      if (fr.propia) { fr.viva.visible = false; continue; }   // las lleva mision.js
       const d = fr.pos.distanceTo(pj);
       const activa = estadoJuego.modo317 && d < 7;
       fr.viva.visible = activa || fr.hallada;

@@ -216,6 +216,7 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
     if (zona === 'ciudad') {
       const primera = pistas.find((p) => !p.f.hallada && !p.revelada);
       for (const p of pistas) {
+        if (p.f.oculta) continue;   // las que ya no son parte de la misión
         const [x, y] = p.f.hallada ? aPx(p.f.pos.x, p.f.pos.z) : aPx(p.cx, p.cz);
         if (p.f.hallada) {
           g.strokeStyle = ROJO; g.lineWidth = mini ? 5 : 3.5;
@@ -232,7 +233,7 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
           g.strokeStyle = LAPIZ; g.lineWidth = mini ? 3 : 1.4; g.setLineDash(mini ? [] : [6, 5]);
           g.beginPath(); g.ellipse(x, y, 10 * k, 8.5 * k, 0.3 * p.n, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
           if (!mini) texto(g, '?', x, y, { tam: 26, color: LAPIZ, negrita: true });
-          if (!mini && p === primera) texto(g, 'suena en 31.7', x, y - 8.5 * k - 12, { tam: 12, color: LAPIZ, cursiva: true });
+          if (!mini && p === primera) texto(g, p.f.dial ? `tu sombra · ${p.f.dial}` : 'suena en 31.7', x, y - 8.5 * k - 12, { tam: 12, color: LAPIZ, cursiva: true });
         }
       }
       if (estadoPorton.abierto) {

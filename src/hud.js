@@ -18,7 +18,7 @@ export function crearHud(audio) {
     dialValor.textContent = muerta ? '317 Hz' : `FM ${frecuencia.toFixed(1).padStart(4, '0')}`;
     dial.classList.toggle('muerta', muerta);
     dial.style.setProperty('--p', `${Math.max(0, Math.min(100, (frecuencia / 108) * 100))}%`);
-    manchas.textContent = `manchas ${halladas}/3`;
+    manchas.textContent = `recuerdos ${halladas}/3`;
     // barras: lo que suena ahora
     const d = audio.espectro();
     g.clearRect(0, 0, barras.width, barras.height);

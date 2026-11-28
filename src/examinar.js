@@ -60,7 +60,7 @@ export function registrarCosas({ interaccion, ciudad, siniestro, detalles, fiest
 
   // las tres manchas: con la radio en 31.7 se escuchan (y cuentan); sin ella, no suenan
   fr.forEach((f) => agregar({
-    zona: 'ciudad', pos: f.pos, radio: 3.6, activo: () => !f.hallada,
+    zona: 'ciudad', pos: f.pos, radio: 3.6, activo: () => !f.hallada && !f.propia,
     etiqueta: () => (juego.modo317 ? 'escuchar la mancha' : 'tocar la mancha'),
     accion: () => {
       if (!lleva.radio) return 'La mancha vibra. Dejé la radio en la repisa del baño.';

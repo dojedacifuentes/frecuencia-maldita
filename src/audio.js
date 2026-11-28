@@ -132,8 +132,11 @@ export function crearAudio() {
     for (const f of [41.2, 41.9, 49.0]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(zf); o.start(); }
     zf.connect(zg).connect(salida);
     // lluvia
-    const ll = fuenteRuido(); const llf = filtro('highpass', 2500); const llg = ganancia(0.022);
+    const ll = fuenteRuido(); const llf = filtro('highpass', 2200); const llg = ganancia(0.04);
     ll.connect(llf).connect(llg).connect(salida); ll.start();
+    // gotas gruesas: un tamborileo grave sobre la calamina y los charcos
+    const lg = fuenteRuido(); const lgf = filtro('bandpass', 700, 1.2); const lgg = ganancia(0.012);
+    lg.connect(lgf).connect(lgg).connect(salida); lg.start();
     // radio: estática + tono 317
     const est = fuenteRuido(); const ef = filtro('bandpass', 2200, 0.6); const eg = ganancia(0);
     est.connect(ef).connect(eg).connect(salida); est.start();
@@ -368,12 +371,37 @@ export function crearAudio() {
   const datos = new Uint8Array(analizador.frequencyBinCount);
   function espectro() { analizador.getByteFrequencyData(datos); return datos; }
 
+  // la bocina de un auto viejo: dos notas cuadradas, entrecortadas
+  function claxon() {
+    const t = ctx.currentTime;
+    const g = ganancia(0); const f = filtro('lowpass', 1800);
+    for (const [a, b] of [[0, 0.32], [0.42, 0.62], [0.7, 1.9]]) { g.gain.setValueAtTime(0.16, t + a); g.gain.setValueAtTime(0, t + b); }
+    for (const hz of [392, 466]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = hz; o.connect(f); disparo(o, 2.0); }
+    f.connect(g).connect(salida);
+  }
+  // arcada (k = 0: el primer aviso, una respiración que se corta; k = 1: el vómito y lo que cae al suelo)
+  function arcada(k = 1) {
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(k ? 150 : 110, t); o.frequency.exponentialRampToValueAtTime(k ? 70 : 80, t + (k ? 0.7 : 0.4));
+    const g = ganancia(0); g.gain.linearRampToValueAtTime(k ? 0.2 : 0.09, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + (k ? 0.8 : 0.45));
+    o.connect(filtro('lowpass', 700)).connect(g).connect(salida); disparo(o, 0.9);
+    const s = fuenteRuido(false); const f = filtro('bandpass', k ? 900 : 1400, 0.8); const g2 = ganancia(0);
+    g2.gain.linearRampToValueAtTime(k ? 0.22 : 0.08, t + 0.05); g2.gain.exponentialRampToValueAtTime(0.0001, t + (k ? 0.75 : 0.35));
+    s.connect(f).connect(g2).connect(salida); disparo(s, 0.8);
+    if (k) {   // lo que cae: un chapoteo
+      const c = fuenteRuido(false); const cf = filtro('lowpass', 1600); const cg = ganancia(0);
+      cg.gain.setValueAtTime(0, t + 0.35); cg.gain.linearRampToValueAtTime(0.18, t + 0.42); cg.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      c.connect(cf).connect(cg).connect(salida); c.start(t); c.stop(t + 1.2);
+    }
+  }
+
   function silencioAnomalo(v) {
     // No suspende el contexto: el control M y el foco siguen funcionando.
     salida.gain.setTargetAtTime(v ? 0.001 : 0.9, ctx.currentTime, 0.18);
   }
 
   return { pasoEn, obturador, silencioAnomalo, ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
-    tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo, bocina,
+    tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo, bocina, claxon, arcada,
     lechoCiudad(v) { if (lechos.ok) { lechos.viento.gain.setTargetAtTime(0.07 * v, ctx.currentTime, 0.4); } } };
 }

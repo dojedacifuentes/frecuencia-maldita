@@ -22,7 +22,7 @@ export function crearDetalles(escena, ciudad) {
   };
   const lotes = new Map();
   const q = new THREE.Quaternion(), e = new THREE.Euler(), m4 = new THREE.Matrix4(), uno = new THREE.Vector3(1, 1, 1);
-  function poner(clave, geo, x, y, z, ry = 0, rx = 0, rz = 0) {
+  let poner = function poner(clave, geo, x, y, z, ry = 0, rx = 0, rz = 0) {
     e.set(rx, ry, rz); q.setFromEuler(e);
     m4.compose(new THREE.Vector3(x, y, z), q, uno);
     geo.applyMatrix4(m4);
@@ -73,6 +73,7 @@ export function crearDetalles(escena, ciudad) {
     const clave = `${Math.round(f.x - f.nx * L / 2)}_${Math.round(f.z - f.nz * L / 2)}`;
     if (!vistos.has(clave)) {
       vistos.add(clave);
+      const poner0 = poner; if (f.cercada) poner = () => {};   // se tiran los dados igual
       const cx = f.x - f.nx * L / 2, cz = f.z - f.nz * L / 2;
       if (r() < 0.6) {
         const tx = cx + (r() - 0.5) * (L - 4), tz = cz + (r() - 0.5) * (L - 4);
@@ -80,6 +81,7 @@ export function crearDetalles(escena, ciudad) {
         for (const [dx, dz] of [[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]]) poner('oxido', caja(0.08, 1.1, 0.08), tx + dx, f.alto + 0.55, tz + dz);
       }
       if (r() < 0.5) poner('oxido', caja(0.05, 3.2, 0.05), cx + (r() - 0.5) * 6, f.alto + 1.6, cz + (r() - 0.5) * 6);
+      poner = poner0;
     }
   }
 

@@ -161,6 +161,7 @@ export function crearCerro(escena, suelo) {
   const cruza = (x0, x1, z0, z1) => ocupado.some((w) => x0 < w.x1 + 0.4 && x1 > w.x0 - 0.4 && z0 < w.z1 + 0.4 && z1 > w.z0 - 0.4);
   for (let x0 = -8.6; x0 < 22; x0 += 3.4) for (let z0 = -37; z0 < 26; z0 += 3.5) {
     const x1 = x0 + 3.2, z1 = z0 + 3.3;
+    if ((Math.round(x0 / 3.4) + Math.round(z0 / 3.5)) % 2 !== 0) continue;   // menos relleno: una sí, una no
     if (cruza(x0, x1, z0, z1) || casas.some((c) => Math.abs(c.cx - (x0 + x1) / 2) < 2.2 && Math.abs(c.cz - (z0 + z1) / 2) < 2.2)) continue;
     casa(x0 + r() * 0.3, x1 - r() * 0.3, z0 + r() * 0.3, z1, null);
   }
@@ -393,8 +394,14 @@ export function crearCerro(escena, suelo) {
     return { peligro, niebla };
   }
 
-  function objetivo(pj) {
+  function objetivo(pj, bajar = false) {
     const p = rel(pj);
+    if (bajar && asc.estado !== 'subiendo' && asc.estado !== 'bajando') {
+      if (p.y > ALTO_CERRO - 1) return ['Baja a la ciudad: los 137 peldaños (al sur) o el ascensor de la izquierda (E). Después, al baño.', A(0, -36)];
+      if (p.z > 26) return ['Sal por el portón del sur (E) y vuelve al baño donde despertaste.', A(0, 39.8)];
+      const sig = [...CAMINO].reverse().find(([, z]) => z > p.z + 0.8) ?? [0, 30];
+      return ['Sigue bajando la escalera. No mires atrás.', A(sig[0], sig[1])];
+    }
     if (asc.estado === 'subiendo') return ['El ascensor sube solo. No hay nadie manejando. Espera a llegar arriba.', null];
     if (asc.estado === 'bajando') return ['El ascensor baja. Espera.', null];
     if (p.y > ALTO_CERRO - 1) return ['Entra al Sanatorio de la Pendiente: la puerta del centro de la fachada (E).', A(0, FACHADA_Z + 1.2)];

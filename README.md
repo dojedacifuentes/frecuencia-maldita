@@ -71,13 +71,46 @@ puedes mover el ratón o usar J/L. Al volver a caminar, la cámara retoma el seg
 - En 31.7 la lluvia sube.
 - `node herramientas/capturas.mjs rarezas` las fotografía; `... eval "<código>"` evalúa algo en el juego.
 
-## Encontrar las manchas (pensado para quien no juega)
-- **Columnas de luz roja** (`columnaDeLuz` en `main.js`) en la vereda junto a cada mancha que falta: se ven desde
-  cualquier parte, por encima de los edificios, y se apagan al despertarla. Una blanca sobre el portón cuando se abre.
-- La **flecha roja del minimapa** apunta siempre a la mancha más cercana; el **plano** las marca desde el principio.
-- A menos de 9 m de una mancha, **la radio se sintoniza sola en 31.7** y aparece «E · escuchar la mancha».
-- El objetivo de arriba: «Ve a la columna de luz roja…» → «Ahí está: … Pulsa E» → «Ve al portón R9, al norte».
-- `node herramientas/capturas.mjs faciles` lo fotografía.
+## La segunda misión: tres recuerdos (28-nov, `mision.js`)
+Antes eran tres manchas iguales repartidas por la ciudad («muy aburrida», dijo el propietario). Ahora son tres
+recuerdos en orden, cada uno en un lugar y con una manera distinta de pasarlo; el contador de abajo dice «recuerdos».
+1. **Tu sombra en el muro** (frente a la plaza del baño, la columna de luz roja): tu sombra está pegada al muro y copia
+   tus movimientos (el cuerpo del protagonista, negro y aplastado contra la pared, corrido como si un farol lo iluminara
+   de lado). Arriba, escrito con sangre: **71.3**. Hay que sintonizar la radio en 71.3 (Z / X o la rueda; el dial se
+   «engancha» cerca y el objetivo muestra el número actual). La sombra se queda quieta, se pone de perfil y señala el
+   este; el muro sangra; tu voz dice «Pieza 12. Sanatorio de la Pendiente». Vomitas.
+2. **El sanatorio**: la luz roja pasa a la boca del muro este. Arriba, la ficha (planta baja) dice «pieza 12, piso 2»;
+   la puerta tiene un 12. Al mirar al que duerme (tú), las tres paredes de la pieza sangran; al salir al pasillo se
+   apagan las luces y viene la que gatea (ahora a 5 m/s: caminando te alcanza, corriendo no). Al salir al patio,
+   vomitas. El cerro guía hacia abajo.
+3. **El baño**: la luz roja vuelve al baño. Orinar en el muro de los urinarios: la mancha toma tu forma, respira, el
+   muro sangra y la radio dice «La ciudad era la mancha del baño». Se abre el portón R9 (lo demás sigue igual).
+- Si te atrapan, despiertas en el baño **sin perder lo recordado** (si fue después de la pieza 12, ya estás en el
+  paso 3). Las manchas 2 y 3 de antes quedaron ocultas (`propia`/`oculta` en `siniestro.frecuencias`).
+- Probado de punta a punta con Chrome invisible (todos los pasos, la persecución y la captura).
+
+## Cuerpo, sangre y vómito (28-nov, `dano.js`, `sangre.js`)
+- **El protagonista dañado**: sobre su textura se pintan mugre, moretones, cortes y sangre que empapa la tela (5
+  niveles; empieza en 1 y sube con cada recuerdo, el vómito y cada captura). Con más daño **cojea** de la pierna derecha,
+  se encorva y se sujeta el costado (`estado.herida` en `cuerpo.js`). Sólo su material: las copias no se ensucian.
+- **Vomita** dos veces en la historia (tras la sombra y al salir del sanatorio): se dobla con las manos en las rodillas,
+  dos arcadas con sonido, un chorro que cae y un charco. Mientras dura no se mueve.
+- **Paredes que sangran**: un solo material para todas (chorreras que bajan desde una herida irregular, con rastro).
+  Ocho muros de la ciudad y cuatro del sanatorio ya venían sangrando; los de la misión empiezan cuando pasa algo.
+
+## Menos relleno y más rápido (28-nov)
+- **Tres manzanas de relleno** ahora son lugares (`manzanas.js`), rodeadas por un muro bajo (en sus caras siguen las
+  cosas de antes): una **plaza de juegos** junto al baño (un columpio se mece solo y queda detenido en el aire si
+  entras; el carrusel gira sin nadie), una **obra gruesa** de cinco pisos (alguien parado en el borde del tercero: si lo
+  miras, desaparece y queda detrás de ti) y un **sitio de autos quemados** (uno prende los focos y toca la bocina; hay
+  alguien al volante). En el cerro, la mitad de las casas de relleno.
+- **Más rápido**: ventanas, puertas, cortinas, veredas y postes de la ciudad se dibujan juntos (una malla por material),
+  y las copias del protagonista (testigos, el que duerme, el doble) sólo se dibujan si están a la vista (antes, todas,
+  siempre). Medido con Chrome en este PC: la ciudad pasó de 860–1.140 llamadas de dibujo a ~630 y de 16 ms a ~7 ms por
+  cuadro; el cerro, de 175.000 a 36.000 triángulos y de 9–20 ms a ~2 ms.
+- **Caminar más rápido**: 3,1 m/s (antes 2,0) y correr 7,0 (antes 6,2).
+- **Ratas grandes otra vez** (como al principio: 1 a 1,7 m y con su brillo), **más niebla** (0,05 en la ciudad) y
+  **lluvia de verdad**: rayas que caen (antes eran puntos de un píxel), con un tamborileo grave en el sonido.
 
 ## El camino y lo que hay en él
 - **Manchas en fila** (`siniestro.js`, `LUGARES_MANCHA`): puerta del baño → mancha 1 (16 m, frente a la plaza sur)

@@ -31,6 +31,7 @@ export function crearBarrio(escena, ciudad) {
   // ---------- techos: cada edificio recibe algo encima (así la ciudad no es una grilla de cubos)
   const edificios = new Map();
   for (const f of ciudad.fachadas) {
+    if (f.cercada) continue;   // las manzanas cercadas (manzanas.js) no tienen techo
     const cx = Math.round(f.x - f.nx * f.largo / 2), cz = Math.round(f.z - f.nz * f.largo / 2);
     edificios.set(`${cx}:${cz}`, { cx, cz, alto: f.alto, lado: f.largo });
   }

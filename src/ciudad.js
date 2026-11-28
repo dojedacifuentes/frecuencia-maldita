@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { prepararHormigon } from './hormigon.js';
 import { material, textura, ps1Material } from './ps1.js';
+import { crearLote } from './lote.js';
 
 export const N = 5;           // manzanas por lado
 export const MANZANA = 16;
@@ -71,14 +72,24 @@ export function crearCiudad(escena) {
   const materialesMuro = ['t_ladrillo', 't_concreto', 't_bloque', 't_ladrillo', 't_bloque', 't_azulejo', 't_bloque'];
   const planos = { plaza_sur: [2, N - 1], plaza_centro: [2, 2] };
   const vacias = { eriazo: [1, 3], capilla: [2, 0], poblacion: [4, 2] };   // manzanas sin edificio (lugares.js, barrio.js)
+  // manzanas de relleno que pasaron a ser lugares (manzanas.js): un muro bajo alrededor y algo distinto adentro
+  const cercadas = { juegos: [3, 4], obra: [0, 3], autos: [4, 0] };
+  sitios.cercadas = {};
+  // todo lo que se repite (veredas, ventanas, puertas, cortinas, postes) se junta: una malla por material
+  const lote = crearLote();
+  const M = {
+    vereda: material('t_vereda'), puerta: material('t_puerta'), local: material('t_local'), cortina: material('t_cortina'),
+    vitrina: material('t_vitrina'), ventana: material('t_ventana', [1, 1], { emissive: 0x2a1d08, emissiveIntensity: 0 }),
+    ventanaLuz: material('t_ventana', [1, 1], { emissive: 0x2a1d08, emissiveIntensity: 1 }),
+    poste: material('t_cortina', [1, 1], { color: 0x444444 }),
+  };
+  const nada = { plano() {}, caja() {} };   // para tirar los dados sin construir
 
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
       const cx = centroManzana(i), cz = centroManzana(j);
       // acera
-      const acera = caja(MANZANA, 0.14, MANZANA, material('t_vereda', [MANZANA / 3, MANZANA / 3]));
-      acera.position.set(cx, 0.07, cz);
-      grupo.add(acera);
+      lote.caja(M.vereda, MANZANA, 0.14, MANZANA, cx, 0.07, cz, { tile: 3 });
       if (i === planos.plaza_sur[0] && j === planos.plaza_sur[1]) { sitios.plazaSur = new THREE.Vector3(cx, 0, cz); continue; }
       if (i === planos.plaza_centro[0] && j === planos.plaza_centro[1]) { sitios.plazaCentro = new THREE.Vector3(cx, 0, cz); continue; }
       const lado = MANZANA - 2 * ACERA;
@@ -91,7 +102,7 @@ export function crearCiudad(escena) {
         if ((i + j) % 3 !== 1 || cx === 0) hormigon(lado, altoE);
         const tirar = new THREE.Group();
         for (const c of [{ nx: 0, nz: 1, x: cx, z: cz + lado / 2 }, { nx: 0, nz: -1, x: cx, z: cz - lado / 2 },
-          { nx: 1, nz: 0, x: cx + lado / 2, z: cz }, { nx: -1, nz: 0, x: cx - lado / 2, z: cz }]) decorarFachada(tirar, c, lado, altoE, r, nomE);
+          { nx: 1, nz: 0, x: cx + lado / 2, z: cz }, { nx: -1, nz: 0, x: cx - lado / 2, z: cz }]) decorarFachada(nada, M, c, lado, altoE, r, nomE);
         if (r() < 0.75) { r(); r(); }
         sitios[vacia] = new THREE.Vector3(cx, 0, cz);
         continue;
@@ -102,19 +113,23 @@ export function crearCiudad(escena) {
       const revestimiento = nom === 't_bloque' ? nom : 't_concreto';
       const mat = (i+j)%3 !== 1 || cx === 0 ? hormigon(lado,alto)
         : material(revestimiento, bloque ? [lado / 12.8, alto / 12.8] : [lado / 5, alto / 5], {color: 0xd1c8b4});
-      const techo = material('t_concreto', [3, 3], { color: 0x555555 });
-      const edificio = caja(lado, alto, lado, [mat, mat, techo, techo, mat, mat]);
-      edificio.position.set(cx, alto / 2, cz);
-      grupo.add(edificio);
-      colisiones.push({ x0: cx - lado / 2, x1: cx + lado / 2, z0: cz - lado / 2, z1: cz + lado / 2 });
+      const cercada = Object.keys(cercadas).find((k) => cercadas[k][0] === i && cercadas[k][1] === j);
+      if (!cercada) {
+        const techo = material('t_concreto', [3, 3], { color: 0x555555 });
+        const edificio = caja(lado, alto, lado, [mat, mat, techo, techo, mat, mat]);
+        edificio.position.set(cx, alto / 2, cz);
+        grupo.add(edificio);
+        colisiones.push({ x0: cx - lado / 2, x1: cx + lado / 2, z0: cz - lado / 2, z1: cz + lado / 2 });
+      } else sitios.cercadas[cercada] = { x: cx, z: cz, lado };
       // las cuatro caras
       const caras = [
         { nx: 0, nz: 1, x: cx, z: cz + lado / 2 }, { nx: 0, nz: -1, x: cx, z: cz - lado / 2 },
         { nx: 1, nz: 0, x: cx + lado / 2, z: cz }, { nx: -1, nz: 0, x: cx - lado / 2, z: cz },
       ];
       for (const c of caras) {
-        fachadas.push({ ...c, largo: lado, alto, tipo: nom });
-        decorarFachada(grupo, c, lado, alto, r, nom);
+        // en las cercadas, la cara es el muro bajo (2,6 m): ahí se siguen pegando manchas, frases y viejas
+        fachadas.push({ ...c, largo: lado, alto: cercada ? 2.6 : alto, tipo: nom, cercada });
+        decorarFachada(cercada ? nada : lote, M, c, lado, alto, r, nom);
       }
       // basura contra la pared
       if (r() < 0.75) {
@@ -130,12 +145,11 @@ export function crearCiudad(escena) {
     for (let j = 0; j <= N; j++) {
       if (r() < 0.25) continue;
       const x = centroCalle(i) + CALLE / 2 + 0.5, z = centroCalle(j) + CALLE / 2 + 0.5;
-      const poste = caja(0.14, 4.2, 0.14, material('t_cortina', [1, 3], { color: 0x444444 }));
-      poste.position.set(x, 2.1, z);
+      lote.caja(M.poste, 0.14, 4.2, 0.14, x, 2.1, z, { tile: 1.4 });
       const cabeza = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.3),
         new THREE.MeshBasicMaterial({ color: 0xffb566 }));
       cabeza.position.set(x, 4.25, z);
-      grupo.add(poste, cabeza);
+      grupo.add(cabeza);
       faroles.push({ pos: new THREE.Vector3(x, 4.1, z), cabeza, fase: r() * 10, falla: r() < 0.35 });
       colisiones.push({ x0: x - 0.15, x1: x + 0.15, z0: z - 0.15, z1: z + 0.15 });
     }
@@ -167,31 +181,31 @@ export function crearCiudad(escena) {
   // el baño público en la plaza sur: aquí siempre se despierta
   sitios.bano = crearBano(grupo, colisiones, sitios.plazaSur);
 
+  lote.construir(grupo);
+
   escena.add(grupo);
   return { grupo, colisiones, fachadas, faroles, basuras, sitios, enCanal };
 }
 
-function decorarFachada(grupo, c, lado, alto, r, nom) {
+function decorarFachada(lote, M, c, lado, alto, r, nom) {
   const rot = Math.atan2(c.nx, c.nz);
-  const poner = (mesh, a, y) => {
+  const poner = (mat, w, h, a, y) => {
     // a: posición a lo largo de la cara (-lado/2..lado/2)
     const tx = c.nz !== 0 ? a * (c.nz > 0 ? 1 : -1) : 0;
     const tz = c.nx !== 0 ? -a * (c.nx > 0 ? 1 : -1) : 0;
-    mesh.position.set(c.x + c.nx * 0.03 + tx, y, c.z + c.nz * 0.03 + tz);
-    mesh.rotation.y = rot;
-    grupo.add(mesh);
+    lote.plano(mat, w, h, c.x + c.nx * 0.03 + tx, y, c.z + c.nz * 0.03 + tz, { ry: rot });
   };
   const tramos = Math.floor(lado / 4);
   for (let k = 0; k < tramos; k++) {
     const a = -lado / 2 + 2 + k * 4;
     const tipo = r();
-    if (tipo < 0.18) poner(plano(1.4, 2.4, material('t_puerta')), a, 1.2);
-    else if (tipo < 0.36) poner(plano(3.6, 3.4, material('t_local')), a, 1.7);
-    else if (tipo < 0.5) poner(plano(3.4, 2.8, material('t_cortina', [1, 1])), a, 1.4);
-    else if (tipo < 0.56) poner(plano(3.2, 2.4, material('t_vitrina')), a, 1.5);
+    if (tipo < 0.18) poner(M.puerta, 1.4, 2.4, a, 1.2);
+    else if (tipo < 0.36) poner(M.local, 3.6, 3.4, a, 1.7);
+    else if (tipo < 0.5) poner(M.cortina, 3.4, 2.8, a, 1.4);
+    else if (tipo < 0.56) poner(M.vitrina, 3.2, 2.4, a, 1.5);
     if (nom === 't_bloque') continue;   // el bloque soviético ya trae sus ventanas en la textura
     for (let y = 4.2; y < alto - 1.5; y += 3.5) {
-      if (r() < 0.55) poner(plano(1.5, 1.8, material('t_ventana', [1, 1], { emissive: 0x2a1d08, emissiveIntensity: r() < 0.3 ? 1 : 0 })), a, y);
+      if (r() < 0.55) poner(r() < 0.3 ? M.ventanaLuz : M.ventana, 1.5, 1.8, a, y);
     }
   }
 }

@@ -34,6 +34,10 @@ import { crearCerro } from './cerro.js';
 import { crearSanatorio } from './sanatorio.js';
 import { crearBarrio } from './barrio.js';
 import { crearSustos } from './sustos.js';
+import { crearManzanas } from './manzanas.js';
+import { crearSangre } from './sangre.js';
+import { crearDano, crearVomito } from './dano.js';
+import { crearMision, DIAL_SOMBRA } from './mision.js';
 
 pintarControles();
 
@@ -41,11 +45,11 @@ const canvas = document.getElementById('lienzo');
 const { renderer, dibujar, post } = crearRender(canvas);
 const escena = new THREE.Scene();
 const NIEBLAS = {
-  ciudad: { color: new THREE.Color(0x46515a), densidad: 0.036 },
+  ciudad: { color: new THREE.Color(0x46515a), densidad: 0.05 },
   fiesta: { color: new THREE.Color(0x2a0707), densidad: 0.045 },
   pasillos: { color: new THREE.Color(0x1a0303), densidad: 0.07 },
   metro: { color: new THREE.Color(0x0c0e0c), densidad: 0.055 },
-  cerro: { color: new THREE.Color(0x3a434c), densidad: 0.026 },
+  cerro: { color: new THREE.Color(0x3a434c), densidad: 0.034 },
   sanatorio: { color: new THREE.Color(0x0c100e), densidad: 0.06 },
   ...Object.fromEntries(Object.entries(INTERIORES).map(([k, v]) => [k, { color: new THREE.Color(v.niebla.color), densidad: v.niebla.densidad }])),
 };
@@ -68,10 +72,22 @@ const canal = crearCanal(escena, ciudad);   // antes que los detalles: así nada
 const lugares = crearLugares(escena, ciudad);   // pasaje y sitio eriazo (también antes que los detalles)
 const metro = crearMetro(escena, ciudad);       // el atajo bajo el canal (una zona aparte, como la fiesta)
 const interiores = crearInteriores(escena, ciudad);   // departamento, radio 31.7 y cine (zonas aparte)
+const manzanas = crearManzanas(escena, ciudad);       // plaza de juegos, obra gruesa y autos quemados (antes, relleno)
+const sangre = crearSangre(escena);                   // paredes que sangran
 const detalles = crearDetalles(escena, ciudad);
 // el protagonista en 3D; si el modelo no carga, queda el muñeco de cajas
 await cargarCuerpo().catch((e) => console.warn('modelo 3D no disponible, uso el de cajas', e));
 const jugador = crearJugador(escena);
+// el protagonista se ve dañado (más a cada golpe de la historia) y a veces vomita
+const HERIDA = [0.1, 0.3, 0.55, 0.75, 0.95];
+const danoTextura = jugador.figura?.estado ? crearDano(jugador.figura.malla.material) : null;
+const dano = {
+  nivel: 1,
+  poner(n) { this.nivel = Math.max(0, Math.min(4, n)); danoTextura?.poner(this.nivel); if (jugador.figura?.estado) jugador.figura.estado.herida = HERIDA[this.nivel]; },
+  subir() { this.poner(this.nivel + 1); },
+};
+dano.poner(1);
+const vomito = crearVomito(escena, audio);
 // escaleras y pisos: el cerro y el sanatorio (zonas aparte); la ciudad sigue siendo plana
 const suelo = crearSuelo();
 jugador.estado.suelo = (x, z, y) => suelo.altura(juego.zona, x, z, y);
@@ -97,6 +113,17 @@ const telefonos = crearTelefonos({ escena, ciudad, siniestro, audio, hud, intera
   estadoJuego: { susto: (v) => estadoJuego.susto(v) }, leerJuego: () => juego });
 const calles = crearCalles({ escena, ciudad, camara, audio, hud, interaccion, inventario, estadoJuego: { susto: (v) => estadoJuego.susto(v) } });
 const bichos = crearBichos({ escena, ciudad, camara, audio });
+// paredes que ya venían sangrando: algunas de la ciudad y del sanatorio
+{
+  const libres = ciudad.fachadas.filter((f, i) => !f.cercada && f.alto > 5 && !ciudad.ocupadas?.has(i) && Math.hypot(f.x, f.z - 28.4) > 12 && Math.abs(f.x) < 50 && Math.abs(f.z) < 50);
+  for (let k = 0; k < 8; k++) {
+    const f = libres[(k * 11 + 4) % libres.length], a = ((k * 0.37) % 1 - 0.5) * (f.largo - 4), ry = Math.atan2(f.nx, f.nz);
+    const x = f.x + f.nx * 0.09 + (f.nz !== 0 ? a : 0), z = f.z + f.nz * 0.09 + (f.nx !== 0 ? a : 0);
+    sangre.agregar(null, x, 1.75, z, ry, 2.6 + (k % 3) * 0.8, 3.3, -40 - k * 37);
+  }
+  const S = { x: -300, z: 300 };
+  for (const [x, y, z, ry] of [[-4, 9.7, 1.88, Math.PI], [9, 9.7, -1.88, 0], [-12, 5.7, 1.88, Math.PI], [13, 1.7, -1.88, 0]]) sangre.agregar(null, S.x + x, y, S.z + z, ry, 3.0, 3.2, -60 - x * 7);
+}
 
 // columnas de luz: rojas sobre cada mancha que falta (se ven desde cualquier parte, por encima de los edificios) y una
 // blanca sobre el portón cuando se abre. Así siempre se sabe hacia dónde ir.
@@ -114,7 +141,7 @@ const faros = siniestro.frecuencias.map((f) => {
 });
 const faroPorton = columnaDeLuz(ciudad.sitios.porton.position.x, ciudad.sitios.porton.position.z + 2, 0xdfe8ff);
 siniestro.frecuencias.forEach((f, i) => plano.revelar(i));
-hud.marcasDial(FRECUENCIAS);
+hud.marcasDial([...FRECUENCIAS, DIAL_SOMBRA]);
 let tutorialVisto = false;   // una vez por partida
 
 // faroles: sólo los 6 más cercanos tienen luz real (como hacían los juegos de la época)
@@ -122,11 +149,11 @@ const luces = Array.from({ length: 6 }, () => { const l = new THREE.PointLight(0
 
 // lluvia: puntos que caen alrededor de la cámara
 const gotas = new THREE.BufferGeometry();
-const NG = 900;
-const pg = new Float32Array(NG * 3);
-for (let i = 0; i < NG; i++) { pg[i * 3] = (Math.random() - 0.5) * 30; pg[i * 3 + 1] = Math.random() * 12; pg[i * 3 + 2] = (Math.random() - 0.5) * 30; }
+const NG = 1700, LARGO_GOTA = 0.45;
+const pg = new Float32Array(NG * 6);
+for (let i = 0; i < NG; i++) { const x = (Math.random() - 0.5) * 30, y = Math.random() * 12, z = (Math.random() - 0.5) * 30; pg.set([x, y, z, x + 0.04, y + LARGO_GOTA, z + 0.02], i * 6); }
 gotas.setAttribute('position', new THREE.BufferAttribute(pg, 3));
-const lluvia = new THREE.Points(gotas, new THREE.PointsMaterial({ color: 0x9aa0a6, size: 1.2, sizeAttenuation: false, transparent: true, opacity: 0.55 }));
+const lluvia = new THREE.LineSegments(gotas, new THREE.LineBasicMaterial({ color: 0xaab2ba, transparent: true, opacity: 0.4, depthWrite: false }));
 escena.add(lluvia);
 
 // ---- entrada
@@ -190,7 +217,7 @@ function leerTeclas(dt) {
   if (k('KeyZ')) juego.dial = Math.max(0, juego.dial - dt * 9);
   if (k('KeyX')) juego.dial = Math.min(108, juego.dial + dt * 9);
   if (!k('KeyZ') && !k('KeyX')) {
-    const f = FRECUENCIAS.find((x) => Math.abs(x - juego.dial) < 0.6);
+    const f = [...FRECUENCIAS, ...mision.extras()].find((x) => Math.abs(x - juego.dial) < 0.6);
     if (f !== undefined) juego.dial += (f - juego.dial) * Math.min(1, dt * 5);
   }
 }
@@ -234,6 +261,9 @@ const estadoJuego = {
   },
 };
 
+// la segunda misión: tu sombra, el sanatorio y el baño (mision.js)
+const mision = crearMision({ escena, ciudad, siniestro, sangre, vomito, dano, audio, hud, juego, estadoJuego, jugador, sustos });
+
 // ---- orinar: deja una mancha de verdad en el muro, que con el tiempo toma su forma
 const manchas = [];
 function lienzoMancha() {
@@ -273,6 +303,7 @@ function orinar() {
   lamina.rotation.y = Math.atan2(m.f.nx, m.f.nz);
   escena.add(lamina);
   manchas.push({ plano: lamina, mat, edad: 0, forma: false });
+  mision.orino(manchas[manchas.length - 1]);
   if (manchas.length > 12) { const v = manchas.shift(); escena.remove(v.plano); }
   audio.chorro();
   return true;
@@ -328,7 +359,9 @@ function irA(zona, lado) {
 metro.registrar(interaccion, irA);
 interiores.registrar(interaccion, { audio, siniestro, plano, pistas, hud, estadoJuego, irA });
 cerro.registrar(interaccion, { irA, hud });
-sanatorio.registrar(interaccion, { irA, inventario, director, juego, sustos, audio, estadoJuego });
+sanatorio.registrar(interaccion, { irA, inventario, director, juego, sustos, audio, estadoJuego, mision: { evento: (n) => mision.evento(n) } });
+manzanas.registrar(interaccion);
+for (const [k, nota] of [['juegos', 'juegos'], ['obra', 'obra gruesa'], ['autos', 'autos quemados']]) if (ciudad.sitios.cercadas[k]) plano.agregarLugar({ zona: 'ciudad', pos: ciudad.sitios.cercadas[k], nota });
 barrio.registrar(interaccion, { irA, audio, jugador: () => jugador.estado.pos });
 
 // ---- qué hacer ahora: el objetivo de arriba y hacia dónde apunta el minimapa
@@ -342,7 +375,7 @@ function objetivoActual(pj, enBano) {
   const fono = juego.zona === 'ciudad' && telefonos.sonando();
   if (fono) return [`¡CONTESTA EL TELÉFONO! (E) Está sonando cerca: quedan ${fono.quedan} segundos.`, fono.pos];
   if (juego.zona === 'metro') return metro.objetivo(pj);
-  if (juego.zona === 'cerro') return cerro.objetivo(pj);
+  if (juego.zona === 'cerro') return cerro.objetivo(pj, mision.paso >= 3);
   if (juego.zona === 'sanatorio') return sanatorio.objetivo(pj);
   if (interiores.tiene(juego.zona)) return interiores.objetivo(juego.zona);
   if (juego.zona === 'fiesta') return ['Cruza la pista hasta la puerta del norte, donde baila tu doble.', { x: ORIGEN.x, z: fiesta.zona.zNorte }];
@@ -352,7 +385,9 @@ function objetivoActual(pj, enBano) {
     return [d === ciudad.sitios.porton.position ? 'El portón R9 se abrió: ve al norte (la marca roja del minimapa).'
       : 'El portón R9 se abrió. Está al otro lado del canal: cruza por el puente (la flecha te lleva).', d];
   }
-  if (enBano && !juego.afuera) return ['Sal del baño: la puerta está a tu espalda.', ciudad.sitios.bano.puerta];
+  if (enBano && !juego.afuera && mision.paso !== 3) return ['Sal del baño: la puerta está a tu espalda.', ciudad.sitios.bano.puerta];
+  const om = mision.objetivo(pj, enBano);
+  if (om) return om;
   const x = pistas.masCercana(pj);
   if (!x) return ['Ve al portón R9, al norte, cruzando el canal por el puente.', porElPuente(pj, ciudad.sitios.porton.position)];
   if (x.d < 9) return [`Ahí está: la mancha con forma de hombre en el muro. Pulsa E para escucharla. (${juego.halladas}/3)`, x.f.pos];
@@ -414,6 +449,8 @@ function despertar() {
   ciudad.sitios.porton.position.y = 3;
   for (const f of siniestro.frecuencias) f.hallada = false;
   siniestro.reiniciar(juego.vueltas);
+  mision.reiniciar(juego.motivo); manzanas.reiniciar(); vomito.limpiar();
+  dano.poner(juego.motivo === 'captura' ? dano.nivel + 1 : 1); juego.motivo = null;
   // el baño se pudre con cada vuelta
   b.luz.color.setHex([0xdfe8ff, 0xffb27a, 0xff6a5a, 0x9cff9c][Math.min(3, juego.vueltas)]);
   hud.limpiar();
@@ -469,7 +506,7 @@ function actualizarTodo(dt, t) {
   }
   if (tieneRadio && juego.zona === 'ciudad' && juego.estado === 'jugando') {
     const cerca = pistas.masCercana(pj);
-    if (cerca && cerca.d < 9 && Math.abs(juego.dial - 31.7) > 0.05) {
+    if (cerca && cerca.d < 9 && !cerca.f.propia && Math.abs(juego.dial - 31.7) > 0.05) {
       if (!juego.autoSintonia) { juego.autoSintonia = true; hud.limpiar(); hud.decir('La radio se sintoniza sola: 31.7.\nLa mancha te está llamando.', 3.5); }
       juego.dial += (31.7 - juego.dial) * Math.min(1, dt * 2.5);
       if (Math.abs(juego.dial - 31.7) < 0.3) juego.dial = 31.7;
@@ -492,6 +529,7 @@ function actualizarTodo(dt, t) {
     calles.actualizar(dt, t, jugador.estado);
     const tranquilo = juego.estado !== 'jugando' || enBano || !juego.afuera || tutorial.activo;
     peligro = Math.max(peligro, barrio.actualizar(dt, t, jugador.estado, camara, audio, { ...ctxZonas, tranquilo }).peligro);
+    peligro = Math.max(peligro, manzanas.actualizar(dt, t, jugador.estado, camara, audio, ctxZonas).peligro);
     // faroles: las 6 luces van a los faroles más cercanos; algunos fallan
     const cerca = ciudad.faroles.map((f) => [f, f.pos.distanceToSquared(pj)]).sort((a, c) => a[1] - c[1]).slice(0, 6);
     cerca.forEach(([f], i) => {
@@ -528,6 +566,9 @@ function actualizarTodo(dt, t) {
     audio.setFiesta(f.enDisco ? 0.55 : 0.28, f.enDisco ? 2600 : 380);
   }
   bichos.actualizar(dt, t, jugador.estado, juego.zona, enBano);
+  sangre.actualizar(t);
+  vomito.actualizar(dt);
+  mision.actualizar(dt, t, camara, tieneRadio);
   const latido = 0.22 + Math.pow(Math.max(0, Math.sin(t * 2.4)), 4) * 0.25;
   faros.forEach((m, i) => { m.visible = juego.zona === 'ciudad' && !siniestro.frecuencias[i].hallada; m.material.opacity = latido; });
   faroPorton.visible = juego.zona === 'ciudad' && juego.porton; faroPorton.material.opacity = latido;   // arañas, cucarachas, polillas (sólo en la ciudad)
@@ -582,8 +623,8 @@ function actualizarTodo(dt, t) {
   // lluvia sigue a la cámara
   if (lluvia.visible) {
     const pos = gotas.attributes.position;
-    const caida = juego.modo317 ? -8 : 14;   // en 31.7 la lluvia sube
-    for (let i = 0; i < NG; i++) { let y = pos.getY(i) - dt * caida; if (y < 0) y += 12; if (y > 12) y -= 12; pos.setY(i, y); }
+    const caida = juego.modo317 ? -8 : 19;   // en 31.7 la lluvia sube
+    for (let i = 0; i < NG; i++) { let y = pos.getY(2 * i) - dt * caida; if (y < 0) y += 12; if (y > 12) y -= 12; pos.setY(2 * i, y); pos.setY(2 * i + 1, y + LARGO_GOTA); }
     pos.needsUpdate = true;
     lluvia.position.set(camara.position.x, Math.max(0, camara.position.y - 6), camara.position.z);
   }
@@ -610,7 +651,7 @@ function actualizarTodo(dt, t) {
     jugador.posar('cae', 0, t, Math.min(1, juego.captura / 1.1), dt, camara);
     post.uRojo.value = Math.min(1, juego.captura * 1.3);   // sin tapar la caída
     velo.style.opacity = juego.captura > 0.8 ? '1' : '0';
-    if (juego.captura > 3) { juego.vueltas++; post.uRojo.value = 0; velo.style.opacity = '0'; despertar(); }
+    if (juego.captura > 3) { juego.vueltas++; post.uRojo.value = 0; velo.style.opacity = '0'; juego.motivo = 'captura'; despertar(); }
   } else if (juego.estado === 'final') {
     // la puerta del final de los pasillos: luz blanca, la frase, y otra vez el baño
     juego.final += dt;
@@ -630,7 +671,7 @@ function actualizarTodo(dt, t) {
         const texto = document.createElement('p'); texto.textContent = 'R9 · TRANSMISIÓN INTERRUMPIDA / SUJETO NO LOCALIZADO';
         const boton = document.createElement('button'); boton.textContent = 'Volver al inicio'; boton.onclick = () => location.reload();
         panel.append(titulo, texto, boton); document.getElementById('marco').append(panel);
-      } else { juego.vueltas++; despertar(); }
+      } else { juego.vueltas++; juego.motivo = 'final'; despertar(); }
     }
   } else {
     post.uRojo.value = 0;
@@ -650,7 +691,7 @@ jugador.estado.yawCam = 0.4;
 cuadro();
 
 // para pruebas: window.__juego
-window.__juego = { juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
+window.__juego = { mision, manzanas, sangre, vomito, dano, renderer, juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
   plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores, director, cerro, sanatorio, barrio, suelo, sustos,
   // adelanta la simulación (para probar aunque el navegador vaya lento) y dibuja una vez
   avanzar(seg, pasoDt = 1 / 30) { for (let k = 0; k < seg / pasoDt; k++) { tiempoJuego += pasoDt; actualizarTodo(pasoDt, tiempoJuego); } dibujar(escena, camara, tiempoJuego); } };

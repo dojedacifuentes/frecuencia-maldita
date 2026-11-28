@@ -286,7 +286,7 @@ export function crearSanatorio(escena, suelo) {
       gatea.animar(dt, 0);
       // despierta al salir de la sala de radio con las cintas, si miras por cuatro mirillas o si corres cerca de ella
       const cerca = Math.hypot(p.x - G0.x, p.z - G0.z) < 9;
-      if (k === 2 && Math.abs(p.z) < 2.2 && (s.cintas || s.mirillas.size >= 4 || (cerca && jugador.corriendo))) {
+      if (k === 2 && Math.abs(p.z) < 2.2 && (s.cintas || s.pieza12 || s.mirillas.size >= 4 || (cerca && jugador.corriendo))) {
         s.caza = 'apagon'; s.cazaT = 0; s.apagadas = 0;
         ctx.hud.limpiar(); ctx.hud.decir('Las luces se apagan. Detrás de ti, algo se levanta.\n¡CORRE a la escalera del fondo! (Shift)', 4);
         audio.crujido(); audio.silencioAnomalo(true);
@@ -307,7 +307,7 @@ export function crearSanatorio(escena, suelo) {
       s.migaT -= dt;
       const ult = s.migas[s.migas.length - 1];
       if (s.migaT <= 0 && (!ult || Math.hypot(p.x - ult.x, p.z - ult.z) > 0.4)) { s.migaT = 0.1; s.migas.push({ x: p.x, y: p.y, z: p.z }); }
-      let paso = 4.3 * dt;
+      let paso = 5.0 * dt;
       while (paso > 0 && s.migas.length) {
         const m = s.migas[0], dx = m.x - g.position.x, dz = m.z - g.position.z, d = Math.hypot(dx, dz);
         if (d <= paso) { g.position.x = m.x; g.position.z = m.z; g.position.y = m.y; paso -= d; s.migas.shift(); }
@@ -333,24 +333,24 @@ export function crearSanatorio(escena, suelo) {
       if (k > 0) return ['Baja a la planta baja: tu ficha está en el archivo.', A(k === 2 ? 14 : 18, 9)];
       return ['Busca tu ficha en el ARCHIVO (planta baja, segunda puerta del norte) y pulsa E.', A(-8, -4)];
     }
-    if (!s.cintas) {
-      if (k < 2) return ['Sube al piso 2 por la escalera del fondo (este): ahí está la sala de radio.', A(k === 0 ? 18 : 14, k === 0 ? 4 : 9)];
-      return ['Ve a la SALA DE RADIO (piso 2, al fondo del pasillo, primera puerta del norte) y escucha las cintas (E). Algo duerme ahí: camina, no corras.', A(-16, -4)];
+    if (!s.pieza12) {
+      if (k < 2) return ['Tu ficha dice PIEZA 12, PISO 2. Sube por la escalera del fondo (este), caminando.', A(k === 0 ? 18 : 14, k === 0 ? 4 : 9)];
+      return ['Busca la PIEZA 12 (piso 2, la puerta del norte con el 12, al medio del pasillo) y mira quién duerme ahí (E). Camina: algo duerme al fondo.', A(1.8, -6.2)];
     }
-    if (k > 0) return ['Ya sabes qué es 31.7. Baja y sal del sanatorio: las manchas siguen esperando en la ciudad.', A(k === 2 ? 14 : 18, 9)];
-    return ['Sal por la puerta del oeste del pasillo y baja a la ciudad: las manchas siguen esperando.', A(-19, 0)];
+    if (k > 0) return ['Baja la escalera del fondo (este) y sal del sanatorio. Vuelve a la ciudad.', A(k === 2 ? 14 : 18, 9)];
+    return ['Sal por la puerta del oeste del pasillo (E). Después, baja a la ciudad.', A(-19, 0)];
   }
 
   function registrar(interaccion, ctx) {
     const { irA, inventario, director, juego, sustos, audio, estadoJuego } = ctx;
     const en = (k, c) => interaccion.agregar({ zona: Z, ...c, activo: () => pisoDe(ultimo.y) === k && (c.activo ? c.activo() : true) });
     const ultimo = { y: 0 };
-    en(0, { pos: A(-19.2, 0), radio: 2.2, prioridad: 2, etiqueta: 'salir al patio', accion: () => { irA('cerro', 'patio'); return null; } });
+    en(0, { pos: A(-19.2, 0), radio: 2.2, prioridad: 2, etiqueta: 'salir al patio', accion: () => { irA('cerro', 'patio'); ctx.mision?.evento('salio'); return null; } });
     en(0, { pos: A(-15, -4.6), radio: 2.2, etiqueta: 'tocar el timbre', accion: () => { audio.timbre(8); return 'Ding.\nArriba, alguien toca otro timbre. Dos veces.'; } });
     en(0, { pos: A(-8, -4.4), radio: 2.6, etiqueta: 'buscar tu ficha', accion: () => {
       s.ficha = true; director.registrarCanal('archivo');
       const v = juego.vueltas;
-      return `FICHA 0317 · «EL DEL ABRIGO VERDE»\nIngresos: ${v + 1}. Muertes registradas: ${v}${v === 0 ? ' (a lápiz: «todavía»)' : ''}.\nDiagnóstico: insiste en que es la primera vez.`;
+      return `FICHA 0317 · «EL DEL ABRIGO VERDE» · PIEZA 12, PISO 2\nIngresos: ${v + 1}. Muertes registradas: ${v}${v === 0 ? ' (a lápiz: «todavía»)' : ''}.\nDiagnóstico: insiste en que es la primera vez. Sigue en su pieza.`;
     } });
     en(0, { pos: A(0, -4.2), radio: 2.6, etiqueta: 'mirar los abrigos', accion: () => 'Cientos de abrigos verdes. Cada uno con una etiqueta: un número de muerte.\nEl último está mojado. Es el tuyo.' });
     en(0, { pos: A(8, -4.2), radio: 2.6, etiqueta: 'mirar la tele', accion: () => 'Estática. Si la miras rato, se ve una escalera.\nAlguien sube. Lleva tu abrigo.' });
@@ -386,7 +386,9 @@ export function crearSanatorio(escena, suelo) {
       () => { audio.golpes(new THREE.Vector3(SO.x + 8, 9.5, SO.z + 2), 1); sustos.temblar(0.6); return 'Oscuro. Algo golpea la puerta desde adentro.\nA la altura de tu cara.'; },
     ];
     MIRILLAS.forEach((m, i) => en(2, { pos: A(m.x, m.z), radio: 1.7, etiqueta: 'mirar por la mirilla', accion: () => { s.mirillas.add(i); return VISTAS[i % VISTAS.length](); } }));
-    en(2, { pos: A(1.8, -7.6), radio: 2.2, etiqueta: 'mirar al que duerme', accion: () => { estadoJuego.susto(0.6); return 'Eres tú. Duermes con el abrigo puesto.\nCuando te acercas, abres los ojos al mismo tiempo.'; } });
+    en(2, { pos: A(1.8, -7.6), radio: 2.4, etiqueta: 'mirar al que duerme', accion: () => {
+      if (!s.pieza12) { s.pieza12 = true; if (ctx.mision?.evento('pieza12')) return null; }
+      estadoJuego.susto(0.6); return 'Eres tú. Duermes con el abrigo puesto.\nCuando te acercas, abres los ojos al mismo tiempo.'; } });
     en(2, { pos: A(-15, -9.6), radio: 2.4, etiqueta: 'escuchar las cintas', accion: () => {
       s.cintas = true; director.registrarCanal('transmision');
       return 'Cintas con fecha de hoy. En todas, tu voz:\n«Las manchas no son llaves. Son recuerdos. 31.7 transmite lo que vivieron las otras copias».';
@@ -402,7 +404,7 @@ export function crearSanatorio(escena, suelo) {
   }
   function salir() { entrar(); }
   function reiniciar() {
-    Object.assign(s, { ficha: false, cintas: false, caza: 'dormida', silla: 'quieta', comedor: false, tina: false, maqueta: false });
+    Object.assign(s, { ficha: false, cintas: false, pieza12: false, caza: 'dormida', silla: 'quieta', comedor: false, tina: false, maqueta: false });
     s.mirillas.clear(); s.migas = []; entrar();
     silla.position.set(18, 0, 0); mano.position.y = 4.3;
   }

@@ -57,7 +57,9 @@ export function crearCuerpo3d() {
   malla.add(huesos.cadera);
   malla.updateMatrixWorld(true);
   malla.bind(new THREE.Skeleton(nombres.map((n) => huesos[n])));
-  malla.frustumCulled = false;   // al caer o bailar sale de su caja original
+  // una esfera fija que alcanza cualquier pose (al caer o bailar sale de su caja original): así sólo se dibuja si
+  // está a la vista; antes todas las copias (testigos, el que duerme, el doble) se dibujaban siempre
+  malla.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.1);
   const alturaCadera = huesos.cadera.position.y;
 
   // la brasa del cigarro, en la mano izquierda
@@ -65,6 +67,9 @@ export function crearCuerpo3d() {
   const c = rig.cigarro, m = J.munecaI;
   brasa.position.set((c[0] - m[0]) * ALTO, (c[1] - m[1]) * ALTO, (c[2] - m[2]) * ALTO);
   huesos.munecaI.add(brasa);
+
+  // herida: 0..1. Con más daño cojea de la pierna derecha, se encorva y se sujeta el costado con la mano derecha
+  const estado = { herida: 0 };
 
   function reposo() {
     for (const n of nombres) huesos[n].rotation.set(0, 0, 0);
@@ -96,6 +101,14 @@ export function crearCuerpo3d() {
       H.columna.rotation.x = corre ? 0.2 : 0.05;
       H.cabeza.rotation.x = corre ? -0.12 : 0.04;
       H.cuello.rotation.z = Math.sin(fase * 0.5) * 0.04;   // la cabeza se mece, cansada
+      const w = estado.herida;
+      if (w > 0) {
+        H.rodillaD.rotation.x *= 1 - 0.65 * w;                      // la pierna mala casi no se dobla
+        H.cadera.rotation.z = s * 0.09 * w;                         // la cadera se va de lado en cada paso
+        H.cadera.position.y -= Math.max(0, -s) * 0.05 * w;          // y se hunde al pisar con la mala
+        H.columna.rotation.x += 0.14 * w; H.cuello.rotation.z += 0.16 * w; H.cabeza.rotation.x += 0.1 * w;
+        H.hombroD.rotation.x = -0.35 * w; H.codoD.rotation.x = -1.45 * w;   // la mano en el costado
+      }
     } else if (modo === 'quieto') {
       // mira alrededor despacio y, cada tanto, se lleva el cigarro a la boca
       H.cabeza.rotation.y = Math.sin(t * 0.37) * 0.28;
@@ -106,6 +119,12 @@ export function crearCuerpo3d() {
       H.hombroI.rotation.x = -0.5 * fuma; H.hombroI.rotation.z = -0.3 * fuma;
       H.codoI.rotation.x = -0.1 - 1.95 * fuma;
       H.cabeza.rotation.y *= 1 - fuma; H.cabeza.rotation.x = -0.1 * fuma;
+      const w = estado.herida;
+      if (w > 0) {
+        H.columna.rotation.x += 0.16 * w; H.cuello.rotation.x += 0.12 * w; H.cuello.rotation.z += 0.12 * w;
+        H.hombroD.rotation.x = -0.35 * w; H.codoD.rotation.x = -1.45 * w;
+        H.rodillaD.rotation.x = 0.12 * w; H.cadera.position.y -= 0.02 * w;
+      }
     } else if (modo === 'baila') {
       // codos arriba a la altura de la cara, rodillas al ritmo, la cadera gira
       H.hombroI.rotation.x = -0.9 + s * 0.25; H.hombroD.rotation.x = -0.9 - s * 0.25;
@@ -118,6 +137,16 @@ export function crearCuerpo3d() {
       H.cadera.rotation.y = Math.sin(fase * 0.5) * 0.3;
       H.columna.rotation.z = s * 0.1;
       H.cabeza.rotation.x = 0.15 + Math.abs(co) * 0.25;
+    } else if (modo === 'vomita') {
+      // se dobla con las manos en las rodillas; dos arcadas (extra 0..1)
+      const e = suave(0, 0.12, extra) * (1 - suave(0.86, 1, extra));
+      const arcada = Math.max(Math.exp(-((extra - 0.31) ** 2) / 0.003), Math.exp(-((extra - 0.63) ** 2) / 0.003));
+      H.columna.rotation.x = (0.62 + 0.28 * arcada) * e; H.pecho.rotation.x = (0.18 + 0.12 * arcada) * e;
+      H.cuello.rotation.x = 0.25 * e; H.cabeza.rotation.x = (0.2 + 0.3 * arcada) * e;
+      H.musloI.rotation.x = -0.45 * e; H.musloD.rotation.x = -0.4 * e; H.rodillaI.rotation.x = 0.55 * e; H.rodillaD.rotation.x = 0.5 * e;
+      H.cadera.position.y = alturaCadera - 0.1 * e;
+      H.hombroI.rotation.x = -0.85 * e; H.hombroD.rotation.x = -0.85 * e; H.codoI.rotation.x = -0.2 * e; H.codoD.rotation.x = -0.2 * e;
+      H.hombroI.rotation.z = -0.12 * e; H.hombroD.rotation.z = 0.12 * e;
     } else if (modo === 'mira') {
       // se detiene en seco, rígido, con la cabeza ladeada
       H.cabeza.rotation.z = 0.28; H.cabeza.rotation.x = 0.12;
@@ -136,5 +165,5 @@ export function crearCuerpo3d() {
     }
   }
 
-  return { malla, huesos, brasa, posar };
+  return { malla, huesos, brasa, posar, estado };
 }

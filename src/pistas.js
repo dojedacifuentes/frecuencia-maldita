@@ -40,7 +40,7 @@ export function crearPistas({ ciudad, siniestro }) {
     return `a ${cuadras(mejor.d)} al ${rumbo(p.x - mejor.h.pos.x, p.z - mejor.h.pos.z)} ${de}`;
   }
 
-  const pendientes = () => frecuencias.map((f, i) => ({ f, i })).filter((x) => !x.f.hallada);
+  const pendientes = () => frecuencias.map((f, i) => ({ f, i })).filter((x) => !x.f.hallada && !x.f.oculta);
   function masCercana(pj) {
     let mejor = null;
     for (const x of pendientes()) {
