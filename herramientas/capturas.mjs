@@ -52,7 +52,14 @@ async function foto(nombre) {
 await cdp('Page.enable');
 await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
 await cdp('Page.navigate', { url: 'http://127.0.0.1:5181/?mudo=1' });
-await espera(3500);
+// espera a que el juego esté listo (el modelo 3D y las texturas tardan según la máquina)
+for (let k = 0; k < 120; k++) {
+  await espera(500);
+  const listo = await cdp('Runtime.evaluate', { expression: '!!(window.__juego && document.getElementById("empezar"))', returnByValue: true });
+  if (listo.result?.result?.value) break;
+  if (k === 119) { console.log('el juego no cargó en 60 s'); }
+}
+await espera(800);
 await foto('00_portada');
 await js(`document.getElementById('empezar').click(); await new Promise(r=>setTimeout(r,600));
   window.__ir=(x,z,dx,dz)=>{const J=window.__juego; J.jugador.estado.pos.set(x,0.15,z); const y=Math.atan2(dx,dz); J.jugador.estado.yawCam=y; J.jugador.estado.rumbo=y;};
@@ -65,6 +72,59 @@ await js(`window.__juego.tutorial.terminar();`);
 const fps = await js(`let n=0; const f=()=>{n++; requestAnimationFrame(f)}; requestAnimationFrame(f); await new Promise(r=>setTimeout(r,2000)); return n/2;`);
 console.log('cuadros por segundo (Chrome invisible, sin tarjeta gráfica):', fps);
 console.log('modelo 3D:', await js(`return window.__juego.jugador.estado.es3d`));
+// los lugares nuevos del mapa (canal, puente…):  node herramientas/capturas.mjs mapa
+if (process.argv[2] === 'mapa') {
+  await js(`const J=window.__juego; J.tutorial.terminar(); J.juego.afuera=true; J.inventario.lleva.radio=true;
+    window.__ver=(x,z,tx,tz,pitch=0.18,seg=0.4)=>{const e=J.jugador.estado; e.pos.set(x,0.15,z); const y=Math.atan2(tx-x,tz-z); e.rumbo=y; e.yawCam=y; e.pitchCam=pitch; J.avanzar(seg);};
+    J.siniestro.sombra.espera=999; J.telefonos.depurar.cabinas.forEach(c=>c.estado='contestado');`);
+  const tomas = (process.argv[3] || 'canal').split(',').flatMap((grupo) => ({
+    canal: [
+      ['m01_canal_orilla', `__ver(-2, -27.5, -2, -40, 0.25, 0.5);`],
+      ['m02_canal_desde_puente', `const J=window.__juego; const c=J.ciudad.sitios.canal; __ver(c.puente.x+0.6, (c.z0+c.z1)/2, c.puente.x-20, (c.z0+c.z1)/2+1, 0.45, 3);`],
+      ['m04_ahogado', `const J=window.__juego; J.avanzar(1); const a=J.canal.depurar.ahogado; J.juego.estado='pausa'; const p=a.raiz.position; J.tutorial.terminar(); const c=J.ciudad.sitios.canal; const cam=()=>{J.camara.position.set(c.puente.x0+0.3, 1.7, p.z-0.6); J.camara.lookAt(p.x, p.y+0.2, p.z);}; cam(); J.avanzar(0.05); cam();`],
+      ['m03_llegando_al_puente', `window.__juego.juego.estado='jugando'; ` + `const J=window.__juego; const c=J.ciudad.sitios.canal; __ver(c.puente.x, -21, c.puente.x, -40, 0.1, 0.5);`],
+    ],
+    pasaje: [
+      ['m05_pasaje_entrada', `const J=window.__juego; const p=J.ciudad.sitios.pasaje; __ver((p.x0+p.x1)/2, p.z1+5, (p.x0+p.x1)/2, p.z0, 0.15, 0.4);`],
+      ['m06_pasaje_adentro', `const J=window.__juego; const p=J.ciudad.sitios.pasaje; __ver((p.x0+p.x1)/2, p.z0+12.5, (p.x0+p.x1)/2, p.z0, 0.1, 2.5);`],
+      ['m07_eriazo', `const J=window.__juego; const e=J.ciudad.sitios.eriazo; __ver(e.x+11, e.z+3, e.x, e.z-1, 0.2, 0.6);`],
+      ['m08_columpios', `const J=window.__juego; const c=J.lugares.depurar.columpio.position; J.juego.estado='pausa'; J.jugador.estado.pos.set(c.x+14,0.15,c.z); J.avanzar(0.6); const cam=()=>{J.camara.position.set(c.x+7.5,1.6,c.z+2.5); J.camara.lookAt(c.x,1.0,c.z);}; cam(); J.avanzar(0.05); cam();`],
+    ],
+    feria: [
+      ['m10_feria', `const J=window.__juego; const f=J.ciudad.sitios.feria; J.juego.estado='pausa'; J.jugador.estado.pos.set(f.x1+8,0.15,(f.z0+f.z1)/2); J.avanzar(0.3); const cam=()=>{J.camara.position.set(f.x1+1.5, 2.1, (f.z0+f.z1)/2+0.6); J.camara.lookAt(f.x0+3, 1.0, (f.z0+f.z1)/2);}; cam(); J.avanzar(0.05); cam();`],
+      ['m11_capilla_afuera', `const J=window.__juego; const c=J.lugares.depurar.capilla; const cam=()=>{J.camara.position.set(c.x+0.3, 1.8, c.zS+1.75); J.camara.lookAt(c.x, 3.4, c.zN);}; cam(); J.avanzar(0.05); cam();`],
+      ['m12_capilla_adentro', `const J=window.__juego; const c=J.lugares.depurar.capilla; const cam=()=>{J.camara.position.set(c.x+1.2, 1.9, c.zS-1.0); J.camara.lookAt(c.x-0.5, 1.2, c.zN);}; cam(); J.avanzar(0.05); cam();`],
+    ],
+    metro: [
+      ['m13_boca_metro', `const J=window.__juego; J.juego.estado='jugando'; const b=J.ciudad.sitios.metro.sur; __ver(b.pos.x+0.5, b.pos.z+3.5, b.x, b.z, 0.12, 0.5);`],
+      ['m14_anden', `const J=window.__juego; const b=J.ciudad.sitios.metro.sur; __ver(b.pos.x, b.pos.z, b.x, b.z, 0.1, 0.2); J.irA('metro','sur'); J.avanzar(1.6); J.tutorial.terminar(); J.avanzar(0.6);`],
+      ['m15_tren_detenido', `const J=window.__juego; const M=J.metro.depurar; __ver(J.metro.llegadas.metro.sur.x+9, 1.2, J.metro.llegadas.metro.sur.x+3, -3, 0.12, 0.5);`],
+      ['m16_viene_el_tren', `const J=window.__juego; const n=J.metro.depurar.nichos[0]; __ver(n-1.5, -4, n+10, -4, 0.15, 0.3); const e=J.jugador.estado; e.pos.set(n, 0.15, -1.2); e.rumbo=e.yawCam=-Math.PI/2; J.avanzar(0.3);`],
+      ['m17_en_el_nicho', `const J=window.__juego; const n=J.metro.depurar.nichos[0]; J.avanzar(1.2);`],
+      ['m18_plano_metro', `const J=window.__juego; J.abrirPlano(true);`],
+      ['m19_salida_norte', `const J=window.__juego; J.abrirPlano(false); J.juego.estado='jugando'; const s=J.metro.depurar.salida; __ver(s.x, s.z, s.x, s.z-3, 0.1, 0.2); J.irA('ciudad','norte'); J.avanzar(1.6); J.avanzar(0.4);`],
+    ],
+    interiores: [
+      ['i01_puerta_depto', `const J=window.__juego; J.juego.estado='jugando'; const l=J.interiores.llegadas.ciudad.depto; __ver(l.x+Math.sin(l.rumbo)*4, l.z+Math.cos(l.rumbo)*4, l.x-Math.sin(l.rumbo), l.z-Math.cos(l.rumbo), 0.1, 0.4);`],
+      ['i02_depto', `const J=window.__juego; const l=J.interiores.llegadas.ciudad.depto; __ver(l.x, l.z, l.x-Math.sin(l.rumbo), l.z-Math.cos(l.rumbo), 0.1, 0.2); J.irA('depto','entrada'); J.avanzar(1.6); J.tutorial.terminar(); J.avanzar(0.5);`],
+      ['i03_depto_fotos_y_mesa', `const J=window.__juego; const o=J.INTERIORES?J.INTERIORES.depto.o:{x:0,z:300}; J.juego.estado='pausa'; const cam=()=>{J.camara.position.set(o.x-1.5, 1.7, o.z+1.0); J.camara.lookAt(o.x+0.6, 1.3, o.z-4);}; cam(); J.avanzar(0.05); cam();`],
+      ['i04_radio_afuera', `const J=window.__juego; J.juego.estado='jugando'; J.irA('ciudad','depto'); J.avanzar(1.6); J.juego.estado='pausa'; const cam=()=>{J.camara.position.set(6.5, 1.8, -9); J.camara.lookAt(18, 7, -21);}; cam(); J.avanzar(0.05); cam();`],
+      ['i05_radio_adentro', `const J=window.__juego; J.juego.estado='jugando'; const l=J.interiores.llegadas.ciudad.radio; __ver(l.x, l.z, l.x-Math.sin(l.rumbo), l.z-Math.cos(l.rumbo), 0.1, 0.2); J.irA('radio','entrada'); J.avanzar(1.6); J.avanzar(0.4);`],
+      ['i06_cine_afuera', `const J=window.__juego; J.irA('ciudad','radio'); J.avanzar(1.6); J.juego.estado='pausa'; const cam=()=>{J.camara.position.set(20, 1.8, 36); J.camara.lookAt(22, 3.0, 28.4);}; cam(); J.avanzar(0.05); cam();`],
+      ['i07_cine_adentro', `const J=window.__juego; J.juego.estado='jugando'; const l=J.interiores.llegadas.ciudad.cine; __ver(l.x, l.z, l.x-Math.sin(l.rumbo), l.z-Math.cos(l.rumbo), 0.1, 0.2); J.irA('cine','entrada'); J.avanzar(1.6); J.avanzar(1.0);`],
+      ['i08_cine_se_dan_vuelta', `const J=window.__juego; const e=J.jugador.estado; e.pos.set(300, 0.15, 300-10+5); J.avanzar(0.5); J.juego.estado='pausa'; const cam=()=>{J.camara.position.set(300, 2.4, 300-10+3.5); J.camara.lookAt(300, 1.0, 300+3);}; cam(); J.avanzar(0.05); cam();`],
+      ['i09_nichos', `const J=window.__juego; J.juego.estado='jugando'; J.irA('ciudad','cine'); J.avanzar(1.6); J.juego.estado='pausa'; const cam=()=>{J.camara.position.set(-54.5, 1.7, 17.5); J.camara.lookAt(-58, 1.3, 21.5);}; cam(); J.avanzar(0.05); cam();`],
+    ],
+  })[grupo] || []);
+  for (const [nombre, expr] of tomas) {
+    await js(expr + `; window.__juego.tutorial.terminar();`);
+    console.log(nombre, '·', await js(`const J=window.__juego; return J.juego.zona + ' | ' + J.juego.estado + ' | ' + document.getElementById('obj-texto').textContent`));
+    await foto(nombre);
+  }
+  await js(`window.__juego.abrirPlano(true);`); await foto('m09_plano');
+  ws.close(); chrome.kill();
+  process.exit(0);
+}
 // cómo se encuentran las manchas (columnas de luz, flecha, radio sola):  node herramientas/capturas.mjs faciles
 if (process.argv[2] === 'faciles') {
   await js(`const J=window.__juego; J.tutorial.terminar();

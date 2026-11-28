@@ -23,6 +23,9 @@ export function crearPistas({ ciudad, siniestro }) {
     { nombre: 'la boca del muro', pos: siniestro.depurar.boca.position },
     { nombre: 'el portón R9', pos: s.porton.position },
     { nombre: 'la cabina de teléfono', pos: siniestro.telefono.pos },
+    { nombre: 'el puente del canal', pos: { x: s.canal.puente.x, z: (s.canal.z0 + s.canal.z1) / 2 } },
+    { nombre: 'el sitio eriazo', pos: s.eriazo },
+    { nombre: 'la capilla', pos: s.capilla },
   ];
   const frecuencias = siniestro.frecuencias;
 

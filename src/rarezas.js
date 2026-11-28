@@ -210,7 +210,7 @@ export function crearRarezas({ escena, ciudad, camara, audio, hud, interaccion, 
     r.position.set(x, 0.22, z); carrito.add(r);
   }
   grupo.add(carrito);
-  const via = { x: centroCalle(1) + 1.2, z0: centroCalle(1), z1: centroCalle(4) };
+  const via = { x: centroCalle(1) + 1.2, z0: centroCalle(1) + 6, z1: centroCalle(4) };   // empieza al sur del canal
   const carro = { z: via.z0 + 6, dir: 1, sonido: 0 };
   interaccion.agregar({
     zona: 'ciudad', pos: carrito.position, radio: 2.8, etiqueta: 'mirar dentro del carro',

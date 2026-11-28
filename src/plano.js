@@ -3,6 +3,8 @@
 // Las tres manchas aparecen como círculos de lápiz («más o menos aquí») hasta que las despiertas: entonces, una X.
 import { LADO, N, MANZANA, ACERA, centroManzana } from './ciudad.js';
 import { ORIGEN } from './fiesta.js';
+import { MO } from './metro.js';
+import { INTERIORES } from './interiores.js';
 
 const S = 768;                       // lado del plano en píxeles
 const TINTA = '#2b2620', ROJO = '#9e1b15', LAPIZ = 'rgba(60,52,44,.75)';
@@ -67,6 +69,22 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
         const [x, y] = aPx(centroManzana(i), centroManzana(j));
         const esPlaza = (sit.plazaSur && Math.abs(centroManzana(i) - sit.plazaSur.x) < 1 && Math.abs(centroManzana(j) - sit.plazaSur.z) < 1)
           || (sit.plazaCentro && Math.abs(centroManzana(i) - sit.plazaCentro.x) < 1 && Math.abs(centroManzana(j) - sit.plazaCentro.z) < 1);
+        const esEriazo = sit.eriazo && Math.abs(centroManzana(i) - sit.eriazo.x) < 1 && Math.abs(centroManzana(j) - sit.eriazo.z) < 1;
+        const esCapilla = sit.capilla && Math.abs(centroManzana(i) - sit.capilla.x) < 1 && Math.abs(centroManzana(j) - sit.capilla.z) < 1;
+        if (esCapilla) {
+          const w = lado * 0.62, hh = lado * 0.94;
+          g.fillStyle = 'rgba(70,62,50,.22)'; g.fillRect(x - w / 2, y - hh / 2, w, hh);
+          g.strokeStyle = TINTA; g.lineWidth = 1.5; g.strokeRect(x - w / 2, y - hh / 2, w, hh);
+          g.lineWidth = 2; g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x, y + 6); g.moveTo(x - 6, y - 8); g.lineTo(x + 6, y - 8); g.stroke();
+          texto(g, 'CAPILLA', x, y + 18, { tam: 10 });
+          continue;
+        }
+        if (esEriazo) {
+          g.setLineDash([2, 4]); g.strokeStyle = TINTA; g.lineWidth = 1.2;
+          g.strokeRect(x - lado / 2, y - lado / 2, lado, lado); g.setLineDash([]);
+          texto(g, 'SITIO', x, y - 6, { tam: 11 }); texto(g, 'ERIAZO', x, y + 8, { tam: 11 });
+          continue;
+        }
         if (esPlaza) {
           g.setLineDash([5, 4]); g.strokeStyle = TINTA; g.lineWidth = 1.2;
           g.strokeRect(x - lado / 2, y - lado / 2, lado, lado); g.setLineDash([]);
@@ -76,6 +94,42 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
         rayado(g, x - lado / 2, y - lado / 2, lado, lado);
         g.strokeStyle = 'rgba(40,34,26,.75)'; g.lineWidth = 1.5; g.strokeRect(x - lado / 2, y - lado / 2, lado, lado);
       }
+    }
+    // los nichos del muro oeste
+    if (sit.nichos) {
+      const n = sit.nichos, [ax, ay] = aPx(n.x, n.z0), [, by] = aPx(n.x, n.z1);
+      g.strokeStyle = TINTA; g.lineWidth = 1;
+      for (let y = ay; y < by; y += 6) g.strokeRect(ax + 1, y, 5, 5);
+      texto(g, 'NICHOS', ax + 18, (ay + by) / 2, { tam: 10, giro: -Math.PI / 2 });
+    }
+    // la feria
+    if (sit.feria) {
+      const f = sit.feria;
+      const [ax, ay] = aPx(f.x0, f.z0), [bx, by] = aPx(f.x1, f.z1);
+      g.setLineDash([3, 3]); g.strokeStyle = TINTA; g.lineWidth = 1; g.strokeRect(ax, ay, bx - ax, by - ay); g.setLineDash([]);
+      texto(g, 'FERIA', (ax + bx) / 2, (ay + by) / 2, { tam: 10, negrita: true });
+    }
+    // el pasaje angosto
+    if (sit.pasaje) {
+      const p = sit.pasaje;
+      const [ax, ay] = aPx(p.x0, p.z0), [bx, by] = aPx(p.x1, p.z1);
+      g.fillStyle = 'rgba(40,34,26,.35)'; g.fillRect(ax, ay, bx - ax, by - ay);
+      g.strokeStyle = TINTA; g.lineWidth = 2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax, by); g.moveTo(bx, ay); g.lineTo(bx, by); g.stroke();
+      texto(g, 'PASAJE', (ax + bx) / 2, (ay + by) / 2, { tam: 10, giro: -Math.PI / 2 });
+    }
+    // el canal y su puente
+    const cn = sit.canal;
+    if (cn) {
+      const [ax, ay] = aPx(-LADO / 2, cn.z0), [bx, by] = aPx(LADO / 2, cn.z1);
+      g.fillStyle = 'rgba(70,92,84,.55)'; g.fillRect(ax, ay, bx - ax, by - ay);
+      g.strokeStyle = 'rgba(40,58,52,.7)'; g.lineWidth = 1;
+      for (let x = ax + 6; x < bx; x += 14) { g.beginPath(); g.moveTo(x, (ay + by) / 2 - 2); g.quadraticCurveTo(x + 4, (ay + by) / 2 + 3, x + 8, (ay + by) / 2 - 2); g.stroke(); }
+      g.strokeStyle = TINTA; g.lineWidth = 2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, ay); g.moveTo(ax, by); g.lineTo(bx, by); g.stroke();
+      const [px0] = aPx(cn.puente.x0, 0), [px1] = aPx(cn.puente.x1, 0);
+      g.fillStyle = '#cdc2a2'; g.fillRect(px0, ay - 3, px1 - px0, by - ay + 6);
+      g.strokeRect(px0, ay - 3, px1 - px0, by - ay + 6);
+      texto(g, 'CANAL', aPx(-30, 0)[0], (ay + by) / 2, { tam: 12, negrita: true });
+      texto(g, 'PUENTE', (px0 + px1) / 2 + 34, (ay + by) / 2, { tam: 11 });
     }
     // el muro del borde
     const [x0, y0] = aPx(-LADO / 2, -LADO / 2), [x1, y1] = aPx(LADO / 2, LADO / 2);
@@ -103,6 +157,27 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
   const { zNorte, zFin } = fiesta.zona;
   const cz = (ORIGEN.z + 12 + zFin) / 2, H = 47;
   const vistaFiesta = { aPx: (x, z) => [(x - ORIGEN.x + H) / (2 * H) * S, (z - cz + H) / (2 * H) * S], k: S / (2 * H) };
+  // ---------------- el metro: andén y túnel, como un plano de vías
+  const HM = 46;
+  const vistaMetro = { aPx: (x, z) => [(x - (MO.x + 22) + HM) / (2 * HM) * S, (z - MO.z + HM) / (2 * HM) * S], k: S / (2 * HM) };
+  const baseMetro = lienzo();
+  {
+    const g = baseMetro.getContext('2d'), { aPx } = vistaMetro;
+    papel(g);
+    const [ax, ay] = aPx(MO.x - 16, MO.z - 6), [bx, by] = aPx(MO.x + 15, MO.z + 2.2);
+    g.fillStyle = 'rgba(70,62,50,.16)'; g.fillRect(ax, ay, bx - ax, by - ay);
+    g.strokeStyle = TINTA; g.lineWidth = 2; g.strokeRect(ax, ay, bx - ax, by - ay);
+    const [tx, ty] = aPx(MO.x + 15, MO.z - 6), [ux, uy] = aPx(MO.x + 62, MO.z - 2);
+    g.strokeRect(tx, ty, ux - tx, uy - ty);
+    g.setLineDash([8, 5]); g.beginPath(); g.moveTo(ax, (ay + uy) / 2); g.lineTo(ux, (ay + uy) / 2); g.stroke(); g.setLineDash([]);
+    for (const x of [24, 35, 46, 56]) { const [nx, ny] = aPx(MO.x + x, MO.z - 2); g.fillStyle = '#9e1b15'; g.fillRect(nx - 6, ny, 12, 9); }
+    texto(g, 'ESTACIÓN 317', (ax + bx) / 2, by + 16, { tam: 13, negrita: true });
+    texto(g, 'TÚNEL (BAJO EL CANAL)', (tx + ux) / 2, ty - 14, { tam: 12 });
+    texto(g, 'nichos (rojo): para esconderse del tren', (tx + ux) / 2, uy + 26, { tam: 11, color: '#9e1b15', cursiva: true });
+    const [sx, sy] = aPx(MO.x + 60.4, MO.z - 3.2);
+    texto(g, 'SALIDA ↑', sx - 10, sy - 30, { tam: 12, negrita: true });
+    texto(g, 'BAJO TIERRA EL PLANO SE ACABA', S / 2, S - 14, { tam: 14, negrita: true });
+  }
   const baseFiesta = lienzo();
   {
     const g = baseFiesta.getContext('2d'), { aPx, k } = vistaFiesta;
@@ -202,7 +277,17 @@ export function crearPlano({ ciudad, siniestro, fiesta }) {
   const estadoPorton = { abierto: false };
   let abierto = false;
 
-  function vistaDe(zona) { return zona === 'ciudad' ? [vistaCiudad, baseCiudad] : [vistaFiesta, baseFiesta]; }
+  // adentro de un edificio: un papel en blanco con la flecha
+  const baseInterior = lienzo();
+  { const g = baseInterior.getContext('2d'); papel(g); texto(g, 'AQUÍ ADENTRO NO HAY PLANO', S / 2, S / 2 - 40, { tam: 16, negrita: true }); }
+  const vistasInterior = Object.fromEntries(Object.entries(INTERIORES).map(([k, v]) => [k,
+    { aPx: (x, z) => [(x - v.o.x + 14) / 28 * S, (z - v.o.z + 14) / 28 * S], k: S / 28 }]));
+  function vistaDe(zona) {
+    if (zona === 'ciudad') return [vistaCiudad, baseCiudad];
+    if (zona === 'metro') return [vistaMetro, baseMetro];
+    if (vistasInterior[zona]) return [vistasInterior[zona], baseInterior];
+    return [vistaFiesta, baseFiesta];
+  }
 
   // anota lo que está cerca y dibuja el minimapa
   function actualizar(jugador, zona, porton, destino = null) {

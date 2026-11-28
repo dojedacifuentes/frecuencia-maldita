@@ -95,6 +95,48 @@ puedes mover el ratón o usar J/L. Al volver a caminar, la cámara retoma el seg
   basura y polillas en los faroles.
 - `node herramientas/capturas.mjs calles` fotografía todo esto y muestra las distancias.
 
+## Lugares nuevos del mapa (28-nov)
+- **Canal** (`canal.js`, `CANAL` en `ciudad.js`): ocupa la calle entre la fila del portón y la siguiente, de muro a
+  muro, con agua sucia 1,4 m abajo, barandas y un solo puente (calle x = 11) con un farol que falla. En el agua flota
+  tu cuerpo, boca abajo; cuando cruzas el puente, se da vuelta. El asfalto se cortó en dos paños; los detalles de la
+  calle (autos, papeles, alcantarillas, postes, semáforos) se saltan esa franja. Sus choques son «bajos»: la cámara
+  pasa por encima.
+- **Pasaje R9** (`lugares.js`): la calle entre la primera y la segunda mancha se angosta a 2,2 m entre muros de
+  ladrillo, con techo de calamina rota, ropa colgada (un abrigo verde mojado), un contenedor, una ampolleta y una cara
+  que se asoma por sobre el muro y se esconde si la miras.
+- **Sitio eriazo** (manzana [1,3]): tierra, maleza, reja rota, colchón, neumáticos y columpios que se mecen solos y se
+  detienen de golpe cuando te acercas. La manzana se arma «tirando los mismos dados» que un edificio, así el resto de
+  la ciudad conserva materiales y alturas (`vacias` en `ciudad.js`).
+- **Feria libre** (calle z = 11, al oeste de la plaza central): puestos con toldo, pescados con moscas, carne colgando,
+  cabezas de muñeca, seis radios en 31.7 (pilas debajo) y una vendedora sin cara.
+- **Capilla** (manzana [2,0], al norte del canal): bancas, altar con velas que se prenden con E (el santo de cara
+  tapada se vuelve hacia ti), vitrales y un confesionario donde una radio responde y calma a la sombra.
+- **Metro** (`metro.js`, zona aparte en x = 300): boca en la esquina de la plaza central y salida junto a la capilla.
+  Andén de la estación 317 con un tren detenido lleno de pasajeros sin cara; al entrar al túnel el tren arranca detrás
+  de ti: hay que meterse en un nicho (luz roja) o llegar a la escalera. El tren en marcha aparta la cámara (choque
+  `soloCamara`) pero el atropello lo decide `metro.actualizar`. Plano propio («bajo tierra el plano se acaba»).
+- Cambio de zona general: `irA(zona, lado)` en `main.js` (fundido y `juego.destino`).
+- `node herramientas/capturas.mjs mapa canal,pasaje,feria,metro` fotografía todo esto.
+
+## Lugares donde se entra y los nichos (28-nov, `interiores.js`)
+Cada uno es una zona aparte (como el metro), con fundido al entrar y salir; adentro «no hay plano».
+- **Tu departamento** (puerta «DEPTO 317» junto a la plaza sur): fotos familiares con tu cara raspada, la mesa puesta
+  para tres con la comida podrida, dibujos de niño («PAPÁ», «NO MIRES», «3:17»), calendario tachado menos hoy, tele con
+  estática y la radio de la mesa. Si curioseas tres cosas, golpean la puerta con voz de niño.
+- **Radio 31.7** (antena con luz roja en el techo, frente a la calle que va al puente): estudio con «AL AIRE», consola,
+  cintas que giran y alguien de espaldas en la cabina (si golpeas el vidrio, se da vuelta). El micrófono revela en el
+  plano la mancha que sigue.
+- **Cine Rex** (marquesina con ampolletas, cerca de la primera mancha): la película es `v_relojes`; el público está de
+  espaldas y se da vuelta entero cuando llegas adelante.
+- **Nichos del muro** (`lugares.js`): el muro oeste de la ciudad, de z −28 a 30, lleno de nichos con flores y velas;
+  uno es el tuyo («nació 03:17 · murió 03:17»).
+- `node herramientas/capturas.mjs mapa interiores` los fotografía.
+
+## Repositorio y Vercel
+- GitHub (privado): `dojedacifuentes/la-frecuencia-muerta`, rama `main`. Las fotos de prueba (`capturas/`) y las hojas
+  sueltas de la raíz no se suben (`.gitignore`).
+- `vercel.json`: Vite, `npm ci`, `npm run build`, salida `dist`. Probado desde una copia limpia: compila igual.
+
 ## Peso
 Unos 5,3 MB en total (`npm run build` → `dist/`): código 855 KB (226 KB comprimido), protagonista 3D 633 KB,
 imágenes y texturas 3,2 MB, trocitos de video 0,3 MB. El sonido no pesa: se genera en vivo.

@@ -6,7 +6,7 @@ import { ps1Material } from './ps1.js';
 
 const PLAZO = 14;
 // [x, z] en la vereda, sobre el camino baño → manchas → portón
-const LUGARES = [[9.0, 17], [9.0, -30], [-3.5, -53.2]];
+const LUGARES = [[9.0, 11.0], [9.0, -25.5], [-3.5, -53.2]];   // el primero, a la salida del pasaje; el segundo, junto al puente
 
 export function crearTelefonos({ escena, ciudad, siniestro, audio, hud, interaccion, inventario, plano, pistas, estadoJuego, leerJuego }) {
   const vidrio = ps1Material(new THREE.MeshLambertMaterial({ color: 0x4a1210, transparent: true, opacity: 0.85 }));

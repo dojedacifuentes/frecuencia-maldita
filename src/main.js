@@ -24,6 +24,10 @@ import { crearRarezas } from './rarezas.js';
 import { crearTelefonos } from './telefonos.js';
 import { crearCalles } from './calles.js';
 import { crearBichos } from './bichos.js';
+import { crearCanal } from './canal.js';
+import { crearLugares } from './lugares.js';
+import { crearMetro } from './metro.js';
+import { crearInteriores, INTERIORES } from './interiores.js';
 
 pintarControles();
 
@@ -34,6 +38,8 @@ const NIEBLAS = {
   ciudad: { color: new THREE.Color(0x46515a), densidad: 0.036 },
   fiesta: { color: new THREE.Color(0x2a0707), densidad: 0.045 },
   pasillos: { color: new THREE.Color(0x1a0303), densidad: 0.07 },
+  metro: { color: new THREE.Color(0x0c0e0c), densidad: 0.055 },
+  ...Object.fromEntries(Object.entries(INTERIORES).map(([k, v]) => [k, { color: new THREE.Color(v.niebla.color), densidad: v.niebla.densidad }])),
 };
 escena.background = NIEBLAS.ciudad.color.clone();
 escena.fog = new THREE.FogExp2(NIEBLAS.ciudad.color.clone(), 0.05);
@@ -50,6 +56,10 @@ const audio = crearAudio();
 const hud = crearHud(audio);
 const ciudad = crearCiudad(escena);
 ciudad.sitios.bano.radio = equiparBano(ciudad.grupo, ciudad.sitios.bano);
+const canal = crearCanal(escena, ciudad);   // antes que los detalles: así nada de la calle cae al agua
+const lugares = crearLugares(escena, ciudad);   // pasaje y sitio eriazo (también antes que los detalles)
+const metro = crearMetro(escena, ciudad);       // el atajo bajo el canal (una zona aparte, como la fiesta)
+const interiores = crearInteriores(escena, ciudad);   // departamento, radio 31.7 y cine (zonas aparte)
 const detalles = crearDetalles(escena, ciudad);
 // el protagonista en 3D; si el modelo no carga, queda el muñeco de cajas
 await cargarCuerpo().catch((e) => console.warn('modelo 3D no disponible, uso el de cajas', e));
@@ -252,18 +262,59 @@ function accion() {
 }
 
 registrarCosas({ interaccion, ciudad, siniestro, detalles, fiesta, plano, pistas, audio, juego, estadoJuego, orinar, inventario, puerta });
+lugares.registrar(interaccion, { audio, siniestro, inventario });
+
+// bajar al metro / subir a la calle: fundido a negro y aparecer al otro lado
+function irA(zona, lado) {
+  if (juego.estado !== 'jugando') return;
+  juego.estado = 'transicion'; juego.transicion = 0; audio.golpe(0.4);
+  juego.destino = () => {
+    const desde = juego.zona;
+    const l = (zona === 'ciudad' ? { ...metro.llegadas.ciudad, ...interiores.llegadas.ciudad }
+      : zona === 'metro' ? metro.llegadas.metro : interiores.llegadas[zona])[lado];
+    if (interiores.tiene(desde)) interiores.salir(desde);
+    ponerZona(zona);
+    if (zona === 'metro') metro.reiniciar();
+    if (interiores.tiene(zona)) interiores.entrar(zona);
+    const nb = NIEBLAS[zona];
+    escena.fog.color.copy(nb.color); escena.background.copy(nb.color); escena.fog.density = nb.densidad;
+    jugador.estado.pos.set(l.x, 0.15, l.z); jugador.estado.rumbo = l.rumbo; jugador.estado.yawCam = l.rumbo;
+    hud.limpiar();
+    const TEXTOS = {
+      metro: 'Estación 317.\nHuele a fierro y a orina.',
+      depto: 'Tu departamento.\nHuele a encierro y a algo dulce.',
+      radio: 'Radio 31.7.\nEl letrero «AL AIRE» está encendido. No hay nadie.',
+      cine: 'Cine Rex.\nLa película ya empezó. Siempre ya empezó.',
+    };
+    hud.decir(TEXTOS[zona] || (lado === 'norte' ? 'Saliste al otro lado del canal.\nLa capilla. El portón está al norte.'
+      : lado === 'sur' ? 'Volviste a la plaza.' : 'Volviste a la calle.'), 3.5);
+  };
+}
+metro.registrar(interaccion, irA);
+interiores.registrar(interaccion, { audio, siniestro, plano, pistas, hud, estadoJuego, irA });
 
 // ---- qué hacer ahora: el objetivo de arriba y hacia dónde apunta el minimapa
+// si el destino queda al otro lado del canal y estás al sur, primero el puente
+function porElPuente(pj, destino) {
+  const c = ciudad.sitios.canal;
+  return pj.z > c.z1 - 0.2 && destino.z < c.z0 ? { x: c.puente.x, z: (c.z0 + c.z1) / 2 } : destino;
+}
 function objetivoActual(pj, enBano) {
   if (!inventario.lleva.radio) return ['Recoge la radio en la repisa del baño (E).', ciudad.sitios.bano.radio.position];
   const fono = juego.zona === 'ciudad' && telefonos.sonando();
   if (fono) return [`¡CONTESTA EL TELÉFONO! (E) Está sonando cerca: quedan ${fono.quedan} segundos.`, fono.pos];
+  if (juego.zona === 'metro') return metro.objetivo(pj);
+  if (interiores.tiene(juego.zona)) return interiores.objetivo(juego.zona);
   if (juego.zona === 'fiesta') return ['Cruza la pista hasta la puerta del norte, donde baila tu doble.', { x: ORIGEN.x, z: fiesta.zona.zNorte }];
   if (juego.zona === 'pasillos') return ['Corre por el pasillo hasta la luz del fondo. No te detengas.', { x: ORIGEN.x, z: fiesta.zona.zFin }];
-  if (juego.porton) return ['El portón R9 se abrió: ve al norte (la marca roja del minimapa).', ciudad.sitios.porton.position];
+  if (juego.porton) {
+    const d = porElPuente(pj, ciudad.sitios.porton.position);
+    return [d === ciudad.sitios.porton.position ? 'El portón R9 se abrió: ve al norte (la marca roja del minimapa).'
+      : 'El portón R9 se abrió. Está al otro lado del canal: cruza por el puente (la flecha te lleva).', d];
+  }
   if (enBano && !juego.afuera) return ['Sal del baño: la puerta está a tu espalda.', ciudad.sitios.bano.puerta];
   const x = pistas.masCercana(pj);
-  if (!x) return ['Ve al portón R9, al norte.', ciudad.sitios.porton.position];
+  if (!x) return ['Ve al portón R9, al norte, cruzando el canal por el puente.', porElPuente(pj, ciudad.sitios.porton.position)];
   if (x.d < 9) return [`Ahí está: la mancha con forma de hombre en el muro. Pulsa E para escucharla. (${juego.halladas}/3)`, x.f.pos];
   return [`Ve a la columna de luz roja (la flecha roja del minimapa te lleva): ahí hay una mancha. (${juego.halladas}/3)`, x.f.pos];
 }
@@ -286,7 +337,7 @@ function ponerZona(zona) {
   luces.forEach((l) => { l.intensity = enCiudad ? l.intensity : 0; });
   hemi.intensity = enCiudad ? 1.4 : 0.35;
   ambiente.intensity = enCiudad ? 0.8 : 0.35;
-  jugador.estado.techo = enCiudad ? Infinity : 5.6;
+  jugador.estado.techo = enCiudad ? Infinity : zona === 'metro' ? 3.7 : INTERIORES[zona] ? INTERIORES[zona].techo : 5.6;
   audio.lechoCiudad(enCiudad ? 1 : 0.2);
 }
 
@@ -313,6 +364,7 @@ function despertar() {
   jugador.estado.linternaOn = false;
   inventario.nuevaVuelta();   // la linterna amanece llena
   rarezas.reiniciar(juego.vueltas);
+  metro.reiniciar();
   telefonos.reiniciar();
   calles.reiniciar();
   juego.tiempoAfuera = 0; juego.afuera = false; juego.modo317 = false; juego.dial = 87.9; juego.halladas = 0; juego.porton = false;
@@ -350,7 +402,10 @@ function cuadro() {
   dibujar(escena, camara, tiempoJuego);
 }
 
-function colisionesActuales() { return juego.zona === 'ciudad' ? ciudad.colisiones : fiesta.zona.col; }
+function colisionesActuales() {
+  return juego.zona === 'ciudad' ? ciudad.colisiones : juego.zona === 'metro' ? metro.col
+    : interiores.tiene(juego.zona) ? interiores.col[juego.zona] : fiesta.zona.col;
+}
 
 function actualizarTodo(dt, t) {
   if (juego.estado === 'jugando' || juego.estado === 'portada') {
@@ -384,6 +439,9 @@ function actualizarTodo(dt, t) {
     detalles.actualizar(dt, t, camara);
     puerta.actualizar(dt);
     rarezas.actualizar(dt, t, jugador.estado);
+    canal.actualizar(dt, t, jugador.estado);
+    lugares.actualizar(dt, t, jugador.estado, camara, audio);
+    interiores.actualizarCiudad(t);
     if (juego.estado === 'jugando') telefonos.actualizar(dt, t, jugador.estado);
     calles.actualizar(dt, t, jugador.estado);
     // faroles: las 6 luces van a los faroles más cercanos; algunos fallan
@@ -399,6 +457,12 @@ function actualizarTodo(dt, t) {
     // el techno de la fiesta se oye apagado cerca del portón abierto
     const dP = juego.porton ? pj.distanceTo(ciudad.sitios.porton.position) : 99;
     audio.setFiesta(Math.max(0, 1 - dP / 30) * 0.5, 200);
+  } else if (juego.zona === 'metro') {
+    peligro = metro.actualizar(dt, t, jugador.estado, estadoJuego, audio).peligro;
+    audio.setFiesta(0, 200);
+  } else if (interiores.tiene(juego.zona)) {
+    peligro = interiores.actualizar(juego.zona, dt, t, jugador.estado, camara, audio).peligro;
+    audio.setFiesta(0, 200);
   } else {
     const f = fiesta.actualizar(dt, t, jugador.estado, camara, estadoJuego, beat);
     peligro = f.peligro;
@@ -477,7 +541,7 @@ function actualizarTodo(dt, t) {
   if (juego.estado === 'transicion') {
     juego.transicion += dt;
     velo.style.opacity = '1';
-    if (juego.transicion > 1.2) { entrarFiesta(); velo.style.opacity = '0'; juego.estado = 'jugando'; }
+    if (juego.transicion > 1.2) { (juego.destino || entrarFiesta)(); juego.destino = null; velo.style.opacity = '0'; juego.estado = 'jugando'; }
   }
 
   // captura (la sombra o la garganta) → rojo → negro → el baño
@@ -512,6 +576,6 @@ cuadro();
 
 // para pruebas: window.__juego
 window.__juego = { juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
-  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos,
+  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores,
   // adelanta la simulación (para probar aunque el navegador vaya lento) y dibuja una vez
   avanzar(seg, pasoDt = 1 / 30) { for (let k = 0; k < seg / pasoDt; k++) { tiempoJuego += pasoDt; actualizarTodo(pasoDt, tiempoJuego); } dibujar(escena, camara, tiempoJuego); } };

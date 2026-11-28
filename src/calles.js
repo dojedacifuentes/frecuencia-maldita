@@ -22,7 +22,7 @@ function lienzoTexto(lineas, w, h) {
 export function crearCalles({ escena, ciudad, camara, audio, hud, interaccion, estadoJuego, inventario }) {
   // ---------------- abrigos sin cabeza (sólo si cargó el modelo 3D)
   // rutas: [x0, z0, x1, z1] por el medio de calles que cruza el camino a las manchas
-  const RUTAS = [[-30, centroCalle(4), 30, centroCalle(4)], [centroCalle(3), -22, centroCalle(3), 24], [-30, centroCalle(1), 30, centroCalle(1)]];
+  const RUTAS = [[-30, centroCalle(4), 30, centroCalle(4)], [centroCalle(3), -22, centroCalle(3), 24], [-30, centroCalle(0), 30, centroCalle(0)]];
   const abrigos = [];
   if (cuerpoListo()) {
     RUTAS.forEach(([x0, z0, x1, z1], k) => {

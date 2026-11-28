@@ -8,3 +8,7 @@ dist/
 Thumbs.db
 .DS_Store
 __pycache__/
+
+# fotos de prueba (las saca herramientas/capturas.mjs) y hojas de revisión sueltas
+capturas/
+/*.jpg

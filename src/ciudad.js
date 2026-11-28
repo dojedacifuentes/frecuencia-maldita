@@ -24,6 +24,14 @@ export function azar(semilla) {
 export function centroManzana(i) { return -MITAD + CALLE + MANZANA / 2 + i * (MANZANA + CALLE); }
 export function centroCalle(i) { return -MITAD + CALLE / 2 + i * (MANZANA + CALLE); }
 
+// el canal: ocupa toda la calle entre la fila del portón y la siguiente, de muro a muro; un solo puente, en la calle
+// por donde se va de la tercera mancha al portón (ver canal.js)
+export const CANAL = {
+  z0: centroCalle(1) - CALLE / 2, z1: centroCalle(1) + CALLE / 2,
+  puente: { x: centroCalle(3), x0: centroCalle(3) - 2.2, x1: centroCalle(3) + 2.2 },
+};
+export function enCanal(x, z, margen = 0) { return z > CANAL.z0 - margen && z < CANAL.z1 + margen; }
+
 function caja(w, h, d, mats) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats);
   return m;
@@ -44,9 +52,16 @@ export function crearCiudad(escena) {
   const sitios = {};
 
   // suelo y cielo
-  const asfalto = plano(LADO + 40, LADO + 40, material('t_asfalto', [(LADO + 40) / 6, (LADO + 40) / 6]));
-  asfalto.rotation.x = -Math.PI / 2;
-  grupo.add(asfalto);
+  // el asfalto, en dos paños: al norte y al sur del canal
+  const borde0 = -MITAD - 20, borde1 = MITAD + 20;
+  for (const [z0, z1] of [[borde0, CANAL.z0], [CANAL.z1, borde1]]) {
+    const largo = z1 - z0;
+    const asfalto = plano(LADO + 40, largo, material('t_asfalto', [(LADO + 40) / 6, largo / 6]));
+    asfalto.rotation.x = -Math.PI / 2;
+    asfalto.position.z = (z0 + z1) / 2;
+    grupo.add(asfalto);
+  }
+  sitios.canal = CANAL;
   const cielo = new THREE.Mesh(new THREE.BoxGeometry(LADO + 60, 60, LADO + 60),
     ps1Material(new THREE.MeshBasicMaterial({ map: textura('t_cielo', [10, 10]), side: THREE.BackSide, color: 0x8a8f99 })));
   cielo.position.y = 28;
@@ -55,6 +70,7 @@ export function crearCiudad(escena) {
 
   const materialesMuro = ['t_ladrillo', 't_concreto', 't_bloque', 't_ladrillo', 't_bloque', 't_azulejo', 't_bloque'];
   const planos = { plaza_sur: [2, N - 1], plaza_centro: [2, 2] };
+  const vacias = { eriazo: [1, 3], capilla: [2, 0] };   // manzanas sin edificio (ver lugares.js)
 
   for (let i = 0; i < N; i++) {
     for (let j = 0; j < N; j++) {
@@ -66,6 +82,20 @@ export function crearCiudad(escena) {
       if (i === planos.plaza_sur[0] && j === planos.plaza_sur[1]) { sitios.plazaSur = new THREE.Vector3(cx, 0, cz); continue; }
       if (i === planos.plaza_centro[0] && j === planos.plaza_centro[1]) { sitios.plazaCentro = new THREE.Vector3(cx, 0, cz); continue; }
       const lado = MANZANA - 2 * ACERA;
+      const vacia = Object.keys(vacias).find((k) => vacias[k][0] === i && vacias[k][1] === j);
+      if (vacia) {
+        // el sitio eriazo (lugares.js): sin edificio, pero se tiran los mismos dados que para uno, así el resto de la
+        // ciudad conserva sus materiales y alturas
+        const nomE = materialesMuro[Math.floor(r() * materialesMuro.length)];
+        const altoE = nomE === 't_bloque' ? 14 + Math.floor(r() * 3) * 3.5 : 7 + Math.floor(r() * 4) * 3.5;
+        if ((i + j) % 3 !== 1 || cx === 0) hormigon(lado, altoE);
+        const tirar = new THREE.Group();
+        for (const c of [{ nx: 0, nz: 1, x: cx, z: cz + lado / 2 }, { nx: 0, nz: -1, x: cx, z: cz - lado / 2 },
+          { nx: 1, nz: 0, x: cx + lado / 2, z: cz }, { nx: -1, nz: 0, x: cx - lado / 2, z: cz }]) decorarFachada(tirar, c, lado, altoE, r, nomE);
+        if (r() < 0.75) { r(); r(); }
+        sitios[vacia] = new THREE.Vector3(cx, 0, cz);
+        continue;
+      }
       const nom = materialesMuro[Math.floor(r() * materialesMuro.length)];
       const bloque = nom === 't_bloque';
       const alto = bloque ? 14 + Math.floor(r() * 3) * 3.5 : 7 + Math.floor(r() * 4) * 3.5;
@@ -133,7 +163,7 @@ export function crearCiudad(escena) {
   sitios.bano = crearBano(grupo, colisiones, sitios.plazaSur);
 
   escena.add(grupo);
-  return { grupo, colisiones, fachadas, faroles, basuras, sitios };
+  return { grupo, colisiones, fachadas, faroles, basuras, sitios, enCanal };
 }
 
 function decorarFachada(grupo, c, lado, alto, r, nom) {

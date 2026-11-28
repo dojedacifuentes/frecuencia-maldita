@@ -106,7 +106,7 @@ export function crearDetalles(escena, ciudad) {
     for (let intento=0; intento<2*N*N; intento++) {
       const hx=Math.abs(Math.sin(ry))*2.10+Math.abs(Math.cos(ry))*.99;
       const hz=Math.abs(Math.cos(ry))*2.10+Math.abs(Math.sin(ry))*.99;
-      const ocupado=ciudad.colisiones.some(c=>x+hx+.30>c.x0 && x-hx-.30<c.x1 && z+hz+.30>c.z0 && z-hz-.30<c.z1);
+      const ocupado=ciudad.enCanal(x,z,2.6) || ciudad.colisiones.some(c=>x+hx+.30>c.x0 && x-hx-.30<c.x1 && z+hz+.30>c.z0 && z-hz-.30<c.z1);
       if(!ocupado) {
         montarAuto(poner,x,z,ry,k);
         autos.push({x,z});
@@ -122,6 +122,7 @@ export function crearDetalles(escena, ciudad) {
   const vapores = [];
   for (let k = 0; k < 14; k++) {
     const s = enCalle();
+    if (ciudad.enCanal(s.x, s.z, 0.8)) continue;   // esa calle ahora es el canal
     const g = new THREE.CircleGeometry(0.5, 12); g.rotateX(-Math.PI / 2);
     poner('alcantarilla', g, s.x, 0.015, s.z);
     if (k < 6) vapores.push(new THREE.Vector3(s.x, 0.05, s.z));
@@ -130,13 +131,15 @@ export function crearDetalles(escena, ciudad) {
   for (let k = 0; k < 160; k++) {
     const s = enCalle();
     const g = new THREE.PlaneGeometry(0.28 + r() * 0.2, 0.36 + r() * 0.2); g.rotateX(-Math.PI / 2);
-    poner('papel', g, s.x + (r() - 0.5) * CALLE, 0.02 + r() * 0.01, s.z + (r() - 0.5) * 3, r() * 6);
+    const px = s.x + (r() - 0.5) * CALLE, py = 0.02 + r() * 0.01, pz = s.z + (r() - 0.5) * 3, pr = r() * 6;
+    if (!ciudad.enCanal(px, pz, 0.3)) poner('papel', g, px, py, pz, pr);
   }
   // postes con cables a lo largo de dos avenidas
   const postes = [];
   for (const i of [1, 4]) {
     for (let j = 0; j <= N; j++) {
       const x = centroCalle(i) - CALLE / 2 + 0.4, z = centroCalle(j) - CALLE / 2 + 0.4 + (j === N ? -1 : 0);
+      if (ciudad.enCanal(x, z, 0.5)) continue;   // los cables cruzan el canal de un poste al otro
       poner('oxido', cil(0.11, 0.14, 8.2, 6), x, 4.1, z);
       poner('oxido', caja(1.8, 0.1, 0.1), x, 7.6, z);
       postes.push(new THREE.Vector3(x, 7.6, z));
@@ -161,6 +164,7 @@ export function crearDetalles(escena, ciudad) {
   const semaforos = [];
   for (const [i, j] of [[1, 1], [3, 2], [2, 4], [4, 3], [0, 3], [3, 0]]) {
     const x = centroCalle(i) + CALLE / 2 - 0.5, z = centroCalle(j) - CALLE / 2 + 0.5;
+    if (ciudad.enCanal(x, z, 0.5)) continue;
     poner('oxido', cil(0.08, 0.08, 3.4, 6), x, 1.7, z);
     poner('oscuro', caja(0.36, 0.95, 0.32), x, 3.6, z);
     const luz = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), new THREE.MeshBasicMaterial({ color: 0x332200 }));

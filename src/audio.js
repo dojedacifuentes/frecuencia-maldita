@@ -44,6 +44,17 @@ export function crearAudio() {
   const lechos = {};
   let vozNivel = 0;
   function voz(n) { vozNivel = n; }
+  // la bocina del tren: dos notas desafinadas, largas, que retumban
+  function bocina() {
+    const t = ctx.currentTime;
+    for (const f of [196, 247, 251]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+      const fl = filtro('lowpass', 900); const g = ganancia(0);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.08);
+      g.gain.setValueAtTime(0.09, t + 1.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(fl).connect(g).connect(salida); o.start(t); o.stop(t + 1.65);
+    }
+  }
   // patitas: tres golpecitos secos, muy bajos
   function patitas(dist) {
     const v = volDist(dist, 1) * 0.035;
@@ -335,6 +346,6 @@ export function crearAudio() {
   function espectro() { analizador.getByteFrequencyData(datos); return datos; }
 
   return { ctx, iniciar, setOyente, radio, bano, paso, chillido, chillidos, timbre, golpe, chirrido, crujido, rechinar,
-    tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo,
+    tecla, pulsos3, latido, sirena, espectro, setFiesta, silencioFiesta, rugido, chorro, voz, bip, susurro, golpes, arrastre, radioLejana, patitas, hilo, bocina,
     lechoCiudad(v) { if (lechos.ok) { lechos.viento.gain.setTargetAtTime(0.07 * v, ctx.currentTime, 0.4); } } };
 }

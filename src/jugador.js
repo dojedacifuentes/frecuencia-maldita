@@ -105,6 +105,7 @@ export function crearJugador(escena) {
 
   function aplicarColisiones(p, colisiones) {
     for (const c of colisiones) {
+      if (c.soloCamara) continue;   // p. ej. el tren en marcha: aparta la cámara, no al jugador
       const qx = Math.max(c.x0, Math.min(p.x, c.x1));
       const qz = Math.max(c.z0, Math.min(p.z, c.z1));
       const dx = p.x - qx, dz = p.z - qz;
@@ -128,6 +129,7 @@ export function crearJugador(escena) {
   function distanciaLibre(o, dir, largo, colisiones) {
     let t = largo;
     for (const c of colisiones) {
+      if (c.bajo) continue;   // barandas y canal: la cámara pasa por encima
       let tmin = 0, tmax = largo;
       for (const [oo, dd, a, b] of [[o.x, dir.x, c.x0 - 0.15, c.x1 + 0.15], [o.z, dir.z, c.z0 - 0.15, c.z1 + 0.15]]) {
         if (Math.abs(dd) < 1e-6) { if (oo < a || oo > b) { tmin = 1; tmax = 0; } continue; }
