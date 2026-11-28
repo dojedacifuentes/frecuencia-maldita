@@ -133,9 +133,19 @@ Cada uno es una zona aparte (como el metro), con fundido al entrar y salir; aden
 - `node herramientas/capturas.mjs mapa interiores` los fotografía.
 
 ## Repositorio y Vercel
-- GitHub (privado): `dojedacifuentes/la-frecuencia-muerta`, rama `main`. Las fotos de prueba (`capturas/`) y las hojas
-  sueltas de la raíz no se suben (`.gitignore`).
+- GitHub (público): `dojedacifuentes/frecuencia-maldita`, rama `main`. Cada `git push` a `main` lo publica solo en
+  Vercel: https://frecuencia-maldita.vercel.app (y la copia https://frecuenciamaldita.vercel.app).
+  Las fotos de prueba (`capturas/`) y las hojas sueltas de la raíz no se suben (`.gitignore`).
 - `vercel.json`: Vite, `npm ci`, `npm run build`, salida `dist`. Probado desde una copia limpia: compila igual.
+- `npm test` prueba el director R9 (`tests/`); GitHub lo corre en cada propuesta de cambio a `main`.
+
+## El director de terror R9 (`director-terror.js`, unido el 28-nov)
+Sólo en la ciudad, fuera del baño y sin tutorial: mira cómo juegas (quieto, corriendo, volviendo sobre tus pasos,
+moviendo la radio) y elige uno de 18 sustos sin repetir (figuras que te miran, la que te imita, una puerta roja
+«que no estaba» que te devuelve al baño, un gigante en la niebla, apagón, silencio…), más cuatro rarísimos.
+Emisoras nuevas: 13.9 «canal de mantenimiento» y 77.3 «eco». El final depende de lo que hayas visto y de la foto:
+RECONSTRUCCIÓN, RECONOCIMIENTO o RECHAZO DEL PROTOCOLO (éste termina en la pantalla «03:18»). El baño se va llenando
+de rastros vuelta a vuelta, y el juego recuerda tus partidas en el navegador (`r9:ecos:v1`).
 
 ## Peso
 Unos 5,3 MB en total (`npm run build` → `dist/`): código 855 KB (226 KB comprimido), protagonista 3D 633 KB,

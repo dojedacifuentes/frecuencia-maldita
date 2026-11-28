@@ -1,7 +1,7 @@
 // Las emisoras: además de la estática y de 31.7 (la frecuencia muerta), en el dial hay voces. Una guía, otra lee
 // noticias de ayer sobre el hombre del abrigo verde y otra dicta números: hacia dónde queda la mancha más cercana.
 // Las frases salen escritas bajo el dial; el sonido es un murmullo de voz entre la estática.
-export const FRECUENCIAS = [31.7, 66.0, 94.3, 101.7];
+export const FRECUENCIAS = [13.9, 31.7, 66.0, 77.3, 94.3, 101.7];
 
 const GUIA = [
   'Si me oyes, despertaste otra vez en el baño.',
@@ -27,8 +27,20 @@ export function crearEmisoras(audio) {
   const nombre = caja.querySelector('.em-nombre'), linea = caja.querySelector('.em-linea');
   // numeros(): frases calculadas en el momento (hacia dónde queda la mancha más cercana)
   const ESTACIONES = [
+    { f: 13.9, nombre: 'CANAL DE MANTENIMIENTO', lineas: (c) => [
+      'R9. Protocolo de nacimiento. Sujeto 0317.',
+      'Registro '+String((c.vueltas||0)+1).padStart(3,'0')+': memoria reconstruida.',
+      'Las manchas son recuerdos, no llaves.',
+      'Si encuentra una puerta sin edificio, crúcela. Anote la discontinuidad.',
+    ] },
+    { f: 77.3, nombre: 'ECO', lineas: (c) => [
+      'El último registro contiene '+(c.pasos||0)+' pasos.',
+      'Ha recuperado '+(c.halladas||0)+' de tres recuerdos.',
+      'Si la voz de 94.3 le promete una salida, pregunte quién está hablando.',
+      'La siguiente copia ya ha empezado a soñar.',
+    ] },
     { f: 66.0, nombre: 'NÚMEROS', lineas: (c) => c.numeros() },
-    { f: 94.3, nombre: 'LA VOZ', lineas: () => GUIA },
+    { f: 94.3, nombre: 'LA VOZ', lineas: (c) => c.vueltas > 0 ? [...GUIA, 'No confíes en la voz de 77.3. No recuerda tu primera muerte.'] : GUIA },
     { f: 101.7, nombre: 'NOTICIAS DE AYER', lineas: () => NOTICIAS },
   ];
   let actual = null, k = 0, t = 0;
@@ -47,6 +59,8 @@ export function crearEmisoras(audio) {
       t = 0;
       const ls = est.lineas(contexto);
       linea.textContent = ls[k % ls.length];
+      if(est.f===13.9 && k>=2) contexto.registrar?.('archivo');
+      if(est.f===77.3 && k>=2) contexto.registrar?.('eco');
       k++;
     }
     return est;

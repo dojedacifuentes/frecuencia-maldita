@@ -28,6 +28,7 @@ import { crearCanal } from './canal.js';
 import { crearLugares } from './lugares.js';
 import { crearMetro } from './metro.js';
 import { crearInteriores, INTERIORES } from './interiores.js';
+import { crearDirector } from './director-terror.js';
 
 pintarControles();
 
@@ -152,6 +153,7 @@ function capturarRaton() { try { const r = canvas.requestPointerLock?.(); r?.cat
 canvas.addEventListener('click', () => { if (juego.estado === 'jugando') capturarRaton(); });
 
 function abrirPlano(v) {
+  director.pausa(v);
   if (v) document.getElementById('inventario-pausa').innerHTML = inventario.listaPausa();
   plano.abrir(v, jugador.estado, juego.zona);
   plano.mostrarMini(!v);
@@ -183,6 +185,15 @@ const juego = {
   captura: 0, pasos: 0, afuera: false, latidoT: 0, porton: false, final: 0, transicion: 0, destino: null, bipT: 0,
 };
 
+const director = crearDirector({escena, ciudad, camara, audio, hud, leerJuego: () => juego, leerJugador: () => jugador.estado, luces, lluvia, post, interaccion, volverAlBano: () => {
+  const b = ciudad.sitios.bano;
+  jugador.estado.pos.copy(b.inicio);
+  jugador.estado.rumbo = 0; jugador.estado.yawCam = 0;
+  jugador.reiniciarSeguimiento();
+  entrada.ratonX = entrada.ratonY = 0;
+  audio.pulsos3();
+}});
+
 const estadoJuego = {
   get tiempoAfuera() { return juego.tiempoAfuera; },
   get modo317() { return juego.modo317; },
@@ -203,7 +214,7 @@ const estadoJuego = {
   },
   salida() {
     if (juego.estado !== 'jugando') return;
-    juego.estado = 'final'; juego.final = 0; audio.golpe(1.0);
+    juego.estado = 'final'; juego.final = 0; juego.desenlace = director.desenlace(inventario.lleva.foto); director.final(); audio.golpe(1.0);
   },
 };
 
@@ -379,6 +390,7 @@ function despertar() {
   juego.estado = 'jugando';
   if (plano.abierto) abrirPlano(false);
   tutorial.terminar();
+  director.reiniciar(juego.vueltas);
 }
 
 document.getElementById('empezar').addEventListener('click', () => {
@@ -481,7 +493,7 @@ function actualizarTodo(dt, t) {
   }
 
   const cercaDe317 = Math.max(0, 1 - Math.abs(juego.dial - 31.7) / 6);
-  const emisora = emisoras.actualizar(dt, tieneRadio ? juego.dial : -1, { numeros });
+  const emisora = emisoras.actualizar(dt, tieneRadio ? juego.dial : -1, { numeros, vueltas: juego.vueltas, pasos: juego.pasos, halladas: juego.halladas, zona: juego.zona, registrar: director.registrarCanal });
   let senal = null;
   if (juego.zona === 'ciudad' && juego.modo317 && juego.halladas < 3) {
     const x = pistas.masCercana(pj);
@@ -531,6 +543,8 @@ function actualizarTodo(dt, t) {
     lluvia.position.set(camara.position.x, 0, camara.position.z);
   }
 
+  director.actualizar(dt, t, {enBano, tieneRadio, tutorial: tutorial.activo, peligro});
+
   // el portón: con las tres manchas se abre y lleva a la fiesta
   const velo = document.getElementById('velo');
   if (juego.porton && juego.estado === 'jugando' && juego.zona === 'ciudad') {
@@ -555,8 +569,23 @@ function actualizarTodo(dt, t) {
     // la puerta del final de los pasillos: luz blanca, la frase, y otra vez el baño
     juego.final += dt;
     post.uDestello.value = Math.min(1, juego.final / 2);
-    if (juego.final > 2 && juego.final - dt <= 2) { hud.limpiar(); hud.decir(inventario.lleva.foto ? 'Miro la foto otra vez.\nYa sé quién era. Igual vuelvo.' : 'Si todo vuelve a empezar,\n¿para qué terminar algo?', 4); }
-    if (juego.final > 7) { juego.vueltas++; post.uDestello.value = 0; despertar(); }
+    if (juego.final > 2 && juego.final - dt <= 2) {
+      hud.limpiar();
+      const finales = {'RECONSTRUCCIÓN':'No era un baño. Era una sala de nacimiento.\nOtra copia despierta a las 03:17.', 'RECONOCIMIENTO':'La foto no es un recuerdo. Es un molde.\nYa sé quién era. Igual vuelvo.', 'RECHAZO DEL PROTOCOLO':'La fábrica espera que vuelva a despertar.\nEsta vez, no contesto.'};
+      hud.decir(finales[juego.desenlace], 4);
+    }
+    if (juego.final > 9) {
+      post.uDestello.value = 0;
+      if (juego.desenlace === 'RECHAZO DEL PROTOCOLO') {
+        juego.estado = 'epilogo'; audio.silencioAnomalo(true); hud.mostrar(false);
+        const panel = document.createElement('div'); panel.id = 'epilogo-r9';
+        panel.style.cssText = 'position:absolute;inset:0;z-index:9;background:#090b0a;color:#c9c2ae;display:grid;place-content:center;text-align:center;font-family:monospace;padding:2em';
+        const titulo = document.createElement('h1'); titulo.textContent = '03:18';
+        const texto = document.createElement('p'); texto.textContent = 'R9 · TRANSMISIÓN INTERRUMPIDA / SUJETO NO LOCALIZADO';
+        const boton = document.createElement('button'); boton.textContent = 'Volver al inicio'; boton.onclick = () => location.reload();
+        panel.append(titulo, texto, boton); document.getElementById('marco').append(panel);
+      } else { juego.vueltas++; despertar(); }
+    }
   } else {
     post.uRojo.value = 0;
   }
@@ -576,6 +605,6 @@ cuadro();
 
 // para pruebas: window.__juego
 window.__juego = { juego, jugador, ciudad, siniestro, ratas, fiesta, hud, camara, THREE, escena, despertar, entrarFiesta, post, manchas, orinar,
-  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores,
+  plano, tutorial, abrirPlano, pistas, interaccion, emisoras, inventario, puerta, detalles, rarezas, telefonos, calles, bichos, canal, lugares, metro, irA, interiores, director,
   // adelanta la simulación (para probar aunque el navegador vaya lento) y dibuja una vez
   avanzar(seg, pasoDt = 1 / 30) { for (let k = 0; k < seg / pasoDt; k++) { tiempoJuego += pasoDt; actualizarTodo(pasoDt, tiempoJuego); } dibujar(escena, camara, tiempoJuego); } };
